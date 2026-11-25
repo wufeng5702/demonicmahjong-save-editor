@@ -58,8 +58,14 @@ test('save selector is not an editable path input',() => {
 test('slot labels include account, slot number and complete path',() => {
   const a='E:/Steam/userdata/111/3444020/remote/Slot0.json';
   const b='E:/Steam/userdata/222/3444020/remote/Slot0.json';
-  assert.equal(saveLabel(a),`111 · 0号存档 · ${a}`);
-  assert.equal(saveLabel(b),`222 · 0号存档 · ${b}`);
+  assert.equal(saveLabel(a),`111 · 1号存档 · ${a}`);
+  assert.equal(saveLabel(b),`222 · 1号存档 · ${b}`);
   assert.equal(saveLabel('C:/copies/Slot0 copy.json'),'外部文件 · Slot0 copy.json · C:/copies/Slot0 copy.json');
-  assert.equal(saveLabel('C:\\copies\\Slot2.json'),'外部文件 · 2号存档 · C:\\copies\\Slot2.json');
+  assert.equal(saveLabel('C:\\copies\\Slot2.json'),'外部文件 · 3号存档 · C:\\copies\\Slot2.json');
+});
+test('display slots 1/2/3 keep filenames Slot0/1/2 unchanged',() => {
+  for (const index of [0,1,2]) {
+    const path=`C:/copies/Slot${index}.json`;
+    assert.equal(saveLabel(path),`外部文件 · ${index+1}号存档 · ${path}`);
+  }
 });

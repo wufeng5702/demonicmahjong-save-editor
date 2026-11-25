@@ -37,6 +37,6 @@ export function saveLabel(path) {
   const name = path.split(/[\\/]/).pop();
   const match = /^Slot(\d+)\.json$/i.exec(name);
   const account = /[\\/]userdata[\\/](\d+)[\\/]3444020[\\/]/i.exec(path);
-  const slot = match ? `${Number(match[1])}号存档` : name;
+  const slot = match ? `${Number(match[1]) + 1}号存档` : name;
   return `${account ? account[1] : '外部文件'} · ${slot} · ${path}`;
 }
