@@ -82,12 +82,12 @@ function render() {
   if (tab === 'numbers') { renderNumbers(); return; }
   const kind = tab === 'relics' ? 'relics' : 'lingyong';
   $('content').innerHTML = `
-    <div class="page-title"><div class="title-line"><h2>${kind === 'lingyong' ? '灵俑编辑' : '持有遗物'}</h2>${kind === 'lingyong' ? '<div id="slot-info"></div>' : ''}</div><p>${kind === 'lingyong' ? '多选上场灵俑删除或移动；右侧多选添加，不改变发现记录和商店解锁池。' : '左侧多选删除，右侧多选添加；现有遗物计数保留，供台槽位自动联动。'}</p></div>
+    <div class="page-title"><div class="title-line"><h2>${kind === 'lingyong' ? '灵俑编辑' : '持有遗物'}</h2>${kind === 'lingyong' ? '<div id="slot-info"></div>' : ''}<span class="page-inline-tip">${kind === 'lingyong' ? '多选上场灵俑删除或移动；右侧多选添加，不改变发现记录和商店解锁池。' : '左侧多选删除，右侧多选添加；现有遗物计数保留，供台槽位自动联动。'}</span></div></div>
     <div class="workspace"><div id="held"></div><section class="panel library">
-      <div class="panel-heading"><h3>${kind === 'lingyong' ? '添加灵俑' : '添加遗物'}</h3><span id="result-count" class="muted"></span></div>
+      <div class="panel-heading"><h3>${kind === 'lingyong' ? '添加灵俑' : '添加遗物'}</h3>${kind === 'lingyong' ? '<span class="pool-scope">全部玩家灵俑（含衍生），不包含 BOSS 与角色技能</span>' : ''}<span id="result-count" class="muted"></span></div>
       <input id="search" class="search" aria-label="搜索物品" placeholder="搜索名称、ID、标签或效果描述" value="${esc(search)}">
       <div class="filters"><div id="rarities"></div><select id="tag" aria-label="标签筛选"><option value="">全部标签</option></select></div>
-      <div class="library-note">${kind === 'lingyong' ? '<span>全部玩家灵俑（含衍生），不包含 BOSS 与角色技能</span><span>点击卡片多选</span>' : '<span>未知的已有遗物会保留；不会模拟随机拾取事件。</span>'}</div>
+      ${kind === 'relics' ? '<div class="library-note"><span>未知的已有遗物会保留；不会模拟随机拾取事件。</span></div>' : ''}
       <div id="catalog-grid" class="catalog-grid"></div><div id="detail" class="detail"></div>
     </section></div>`;
   const rarities = [...new Set(boot.catalog[kind].map(i => i.rar).filter(Boolean))];
@@ -258,7 +258,7 @@ function renderDetail() {
 
 function renderNumbers() {
   const groups = [['金币与血量',['Coin','Hp','HpMax','AccHpLost']],['麻将对局',['InitSwapPaiTotal','SwapPaiTurnTotal','HuPaiSlotsCount']],['灵俑容量',['LingYongSlotNum','XiaoChouRepositorySlot']]];
-  $('content').innerHTML = `<div class="page-title"><h2>数值编辑</h2><p>显示的是存档原始值。游戏可能因技能、遗物或 GameConfig 在运行时另行计算最终数值。</p></div>
+  $('content').innerHTML = `<div class="page-title"><div class="title-line"><h2>数值编辑</h2><span class="page-inline-tip">显示的是存档原始值。游戏可能因技能、遗物或 GameConfig 在运行时另行计算最终数值。</span></div></div>
     <div class="number-sections">${groups.map(([title,keys],index) => `<section class="panel number-panel number-group-${index}"><div class="panel-heading"><h3>${title}</h3></div><div class="number-grid">${keys.map(key => {
       const field = boot.fields.find(f => f.key === key);
       return `<label class="number-field" title="${esc(key)}；读取值 ${esc(save.fields[key])}"><strong>${esc(field.label)}</strong><input data-field="${key}" aria-label="${esc(field.label)}" type="text" inputmode="${field.integer ? 'numeric' : 'decimal'}" value="${esc(draft.fields[key])}"><small>读取值 ${esc(save.fields[key])}</small></label>`;

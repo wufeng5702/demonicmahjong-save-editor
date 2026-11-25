@@ -164,7 +164,7 @@ func main() {
 	})
 	s.app = app
 	app.RegisterService(application.NewService(s))
-	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "我在地府打麻将 · 存档编辑器", Width: 1440, Height: 820, MinWidth: 1050, MinHeight: 650})
+	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "我在地府打麻将 · 存档编辑器", Width: 1440, Height: 860, MinWidth: 1050, MinHeight: 760})
 	if err = app.Run(); err != nil {
 		fatal(err)
 	}

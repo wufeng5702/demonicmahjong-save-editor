@@ -37,4 +37,15 @@ test('removed footer has no dangling DOM references',() => {
   const script=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
   assert.equal(html.includes('<footer'),false);
   assert.equal(script.includes("$('summary')"),false);
+  assert.equal(script.includes('点击卡片多选'),false);
+});
+test('inventory uses shared minimums and candidates fit their content',() => {
+  const css=readFileSync(new URL('../web/compact.css',import.meta.url),'utf8');
+  assert.match(css,/\.slots\s*\{[^}]*minmax\(128px,max-content\)/);
+  assert.match(css,/\.slot\s*\{[^}]*min-height:\s*128px/);
+  assert.match(css,/\.slot \.portrait\s*\{[^}]*width:\s*72px;\s*height:\s*72px/);
+  assert.match(css,/\.catalog-grid\s*\{[^}]*grid-auto-rows:\s*max-content/);
+  assert.match(css,/\.catalog-grid\s*\{[^}]*align-items:\s*stretch/);
+  assert.match(css,/\.catalog-card\s*\{[^}]*min-height:\s*initial;\s*height:\s*auto/);
+  assert.doesNotMatch(css,/\.catalog-card\s*\{[^}]*min-height:\s*0/);
 });

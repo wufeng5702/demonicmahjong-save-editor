@@ -33,6 +33,7 @@
 .editor-app .page-title h2 { font-size: 23px; }
 .editor-app .page-title p { margin-top: 5px; font-size: 12px; }
 .editor-app .title-line { gap: 18px; }
+.editor-app .page-inline-tip { flex: 1; min-width: 0; color: var(--muted); font-size: 11px; line-height: 1.5; }
 .editor-app .slot-stats .badge { padding: 5px 9px; font-size: 12px; }
 .editor-app .workspace { flex: 1; min-height: 0; align-items: stretch; gap: 12px; overflow: hidden; }
 .editor-app #held { display: flex; flex-direction: column; gap: 12px; min-height: 0; }
@@ -47,6 +48,8 @@
 .editor-app .lingyong-mode #held > .panel:first-child { flex: 1.5; }
 .editor-app .warehouse { margin-top: 0; }
 .editor-app .panel-heading { flex-shrink: 0; gap: 10px; margin-bottom: 10px; }
+.editor-app .pool-scope { flex: 1; color: var(--muted); font-size: 11px; text-align: center; }
+.editor-app .library .panel-heading h3, .editor-app #result-count { white-space: nowrap; }
 .editor-app #held .panel-heading { flex-wrap: wrap; }
 .editor-app .panel-controls { display: flex; gap: 6px; margin-left: auto; }
 .editor-app .panel-controls .select-all { margin-left: 0; }
@@ -58,9 +61,10 @@
   align-content: start;
   gap: 8px;
   overflow: auto;
+  grid-auto-rows: minmax(128px,max-content);
 }
-.editor-app .slot { min-height: 96px; padding: 22px 5px 6px; gap: 3px; }
-.editor-app .slot .portrait { width: 42px; height: 42px; }
+.editor-app .slot { min-height: 128px; padding: 22px 5px 6px; gap: 3px; }
+.editor-app .slot .portrait { width: 72px; height: 72px; }
 .editor-app .slot strong { font-size: 13px; line-height: 1.25; }
 .editor-app .slot small { font-size: 10px; }
 .editor-app .slot .held-name { display: block; width: 100%; white-space: nowrap; overflow: hidden; text-overflow: ellipsis; font-size: 12px; }
@@ -76,11 +80,11 @@
 .editor-app .filters { flex-shrink: 0; }
 .editor-app .chip { padding: 5px 9px; }
 .editor-app .library-note { flex-shrink: 0; margin: 9px 0; }
-.editor-app .catalog-grid { flex: 1; min-height: 0; max-height: none; }
-.editor-app .catalog-card { padding: 10px; min-height: 0; }
-.editor-app .catalog-card .portrait { width: 40px; height: 40px; }
+.editor-app .catalog-grid { flex: 1; min-height: 0; max-height: none; grid-auto-rows: max-content; align-items: stretch; }
+.editor-app .catalog-card { padding: 10px; min-height: initial; height: auto; grid-template-columns: 52px minmax(0,1fr); }
+.editor-app .catalog-card .portrait { width: 52px; height: 52px; }
 .editor-app .catalog-card strong { font-size: 13px; }
-.editor-app .card-effect { font-size: 12px; line-height: 1.55; }
+.editor-app .card-effect { font-size: 12px; line-height: 1.55; overflow-wrap: anywhere; }
 .editor-app .detail { flex-shrink: 0; min-height: 0; margin-top: 10px; padding-top: 10px; }
 .editor-app .detail-title h3 { font-size: 16px; }
 .editor-app .selection-names { margin-top: 6px; max-height: 34px; overflow: auto; font-size: 12px; line-height: 1.4; }
@@ -98,17 +102,11 @@
 .editor-app .number-field small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .editor-app #reset-numbers { align-self: flex-start; flex-shrink: 0; }
 @media (max-height: 760px) {
-  .editor-app .slot { padding-top: 20px; min-height: 80px; gap: 2px; }
-  .editor-app .slot .portrait { width: 34px; height: 34px; }
   .editor-app .panel-heading { margin-bottom: 8px; }
   .editor-app #held > .panel { padding: 10px; }
   .editor-app .detail .hint { margin-top: 3px; }
 }
 @media (max-height: 700px) {
-  .editor-app .slot:not(.locked):not(.empty-slot) { display: grid; grid-template-columns: 26px minmax(0,1fr); gap: 2px 4px; min-height: 62px; padding: 20px 5px 4px; }
-  .editor-app .slot .portrait { width: 26px; height: 26px; }
-  .editor-app .slot strong { grid-column: 2; font-size: 11px; }
-  .editor-app .slot small { grid-column: 2; font-size: 9px; }
   .editor-app .detail .hint { display: none; }
   .editor-app .page-title p { display: none; }
 }
