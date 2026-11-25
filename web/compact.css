@@ -16,6 +16,7 @@
 .editor-app .app-header #status { padding: 5px 10px; font-size: 11px; }
 .editor-app .toolbar { flex-shrink: 0; padding: 0 20px 8px; }
 .editor-app .toolbar input { padding: 6px 10px; }
+.editor-app .toolbar > select { flex: 1; min-width: 200px; padding: 6px 10px; }
 .editor-app button { padding: 6px 12px; }
 .editor-app nav { flex-shrink: 0; padding: 0 20px 7px; gap: 8px; }
 .editor-app .tabs button { padding: 7px 4px; font-size: 15px; }

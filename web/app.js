@@ -1,10 +1,11 @@
-import { slotState, requestFor, matches, isDirty, selectionFits } from './model.js';
+import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel } from './model.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
 const browserPreview = location.hostname === '127.0.0.1' || location.hostname === 'localhost';
 let runtime, token, boot, save, draft, tab = 'lingyong', pending;
 let search = '', rarity = '', tag = '', busy = false;
+let savePaths = [];
 const selectedEquipped = new Set(), selectedWarehouse = new Set(), selectedRelics = new Set(), selectedCandidates = new Set();
 const catalogs = {};
 
@@ -34,15 +35,25 @@ function toast(message, error = true) {
 async function action(fn) {
   if (busy) return;
   busy = true;
+  $('path').disabled = true;
   document.body.classList.add('busy');
   try { await fn(); } catch (error) { toast(error.message || String(error)); }
-  finally { busy = false; document.body.classList.remove('busy'); }
+  finally { busy = false; $('path').disabled = !savePaths.length; document.body.classList.remove('busy'); }
+}
+
+function updateSaveOptions(path) {
+  if (path && !savePaths.includes(path)) savePaths.push(path);
+  savePaths.sort((a,b) => a.localeCompare(b,'zh',{numeric:true}));
+  $('path').innerHTML = savePaths.length ? savePaths.map(p => `<option value="${esc(p)}" title="${esc(p)}">${esc(saveLabel(p))}</option>`).join('') : '<option value="">未检测到存档，请手动选择文件</option>';
+  $('path').value = path || save?.path || savePaths[0] || '';
+  $('path').title = $('path').value;
+  $('path').disabled = busy || !savePaths.length;
 }
 
 function adopt(snapshot) {
   save = snapshot;
   draft = { fields: {...save.fields}, equipped: [...save.equipped], warehouse: [...save.warehouse], relics: save.relics.map(r => ({...r})) };
-  $('path').value = save.path;
+  updateSaveOptions(save.path);
   selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear();
   pending = undefined;
   render();
@@ -303,16 +314,25 @@ async function showBackups() {
   $('dialog').showModal();
 }
 
-async function loadPath() {
-  if (save && isDirty(save,draft) && !confirm('重新加载会丢弃界面中未保存的修改，是否继续？')) return;
-  adopt(await call('Load',$('path').value));
+async function loadPath(path = $('path').value) {
+  if (save && isDirty(save,draft) && !confirm('切换或重新加载会丢弃界面中未保存的修改，是否继续？')) {
+    $('path').value = save.path;
+    $('path').title = save.path;
+    return;
+  }
+  try {
+    adopt(await call('Load',path));
+  } catch (error) {
+    if (save) { $('path').value = save.path; $('path').title = save.path; }
+    throw error;
+  }
 }
 
 document.querySelectorAll('[data-tab]').forEach(button => { button.onclick = () => { tab = button.dataset.tab; search = ''; rarity = ''; tag = ''; selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear(); render(); }; });
 $('load').onclick = () => action(loadPath);
-$('path').onkeydown = event => { if (event.key === 'Enter') action(loadPath); };
+$('path').onchange = () => action(loadPath);
 $('choose').onclick = () => action(async () => {
-  const path = await call('ChooseSave'); if (path) { $('path').value = path; await loadPath(); }
+  const path = await call('ChooseSave'); if (path) await loadPath(path);
 });
 $('preview').onclick = $('save').onclick = () => action(showPreview);
 $('backups').onclick = () => action(showBackups);
@@ -331,10 +351,13 @@ await action(async () => {
   for (const kind of ['lingyong','relics']) catalogs[kind] = Object.fromEntries(boot.catalog[kind].map(item => [item.id,item]));
   $('source').textContent = `${boot.source} · ${boot.catalog.lingyong.length} 灵俑 / ${boot.catalog.relics.length} 遗物`;
   $('source').title = boot.dataPath;
-  $('save-paths').innerHTML = boot.saves.map(p => `<option value="${esc(p)}"></option>`).join('');
+  savePaths = [...boot.saves];
+  updateSaveOptions();
+  $('choose').disabled = browserPreview;
+  if (browserPreview) $('choose').title = '手动选择文件请使用桌面版；预览只显示已检测到的存档';
   if (boot.readOnly || boot.running) {
     $('status').textContent = boot.readOnly ? '只读预览模式：可以模拟编辑与查看差异，但不能保存或恢复存档。' : '检测到游戏正在运行：可以读取和预览，必须退出游戏后才能保存。';
     $('status').hidden = false;
   }
-  if (boot.saves.length) { $('path').value = boot.saves[0]; await loadPath(); }
+  if (savePaths.length) await loadPath();
 });

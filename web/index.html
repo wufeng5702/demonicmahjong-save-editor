@@ -14,9 +14,8 @@
     <div class="source-area"><div class="source" id="source">正在读取图鉴…</div><button id="refresh-data" class="small">更新图鉴</button></div>
   </header>
   <section class="toolbar" aria-label="存档选择">
-    <input id="path" aria-label="存档路径" list="save-paths" placeholder="选择存档，或输入完整的 .json 路径">
-    <datalist id="save-paths"></datalist>
-    <button id="choose">选择存档</button><button id="load">重新加载</button>
+    <select id="path" aria-label="选择存档" disabled><option value="">未检测到存档</option></select>
+    <button id="choose">手动选择文件</button><button id="load">重新加载</button>
   </section>
   <nav aria-label="编辑栏目">
     <div class="tabs"><button data-tab="numbers">数值</button><button data-tab="lingyong" class="active">灵俑</button><button data-tab="relics">遗物</button></div>

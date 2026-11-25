@@ -32,3 +32,11 @@ export function isDirty(save, draft) {
     JSON.stringify(save.warehouse) !== JSON.stringify(draft.warehouse) ||
     JSON.stringify(save.relics.map(r => ({ ref: r.ref }))) !== JSON.stringify(req.relics);
 }
+
+export function saveLabel(path) {
+  const name = path.split(/[\\/]/).pop();
+  const match = /^Slot(\d+)\.json$/i.exec(name);
+  const account = /[\\/]userdata[\\/](\d+)[\\/]3444020[\\/]/i.exec(path);
+  const slot = match ? `${Number(match[1])}号存档` : name;
+  return `${account ? account[1] : '外部文件'} · ${slot} · ${path}`;
+}

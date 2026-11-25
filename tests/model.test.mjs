@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
 import { readFileSync } from 'node:fs';
-import { slotState, requestFor, matches, isDirty, selectionFits } from '../web/model.js';
+import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel } from '../web/model.js';
 
 const save = {path:'Slot0.json',hash:'unchanged',fields:{Coin:'79228162514264337593543950335.0',LingYongSlotNum:'5',XiaoChouRepositorySlot:'4'},equipped:[1,2],warehouse:[],relics:[{ref:0,id:77}]};
 const copy = () => structuredClone(save);
@@ -48,4 +48,18 @@ test('inventory uses shared minimums and candidates fit their content',() => {
   assert.match(css,/\.catalog-grid\s*\{[^}]*align-items:\s*stretch/);
   assert.match(css,/\.catalog-card\s*\{[^}]*min-height:\s*initial;\s*height:\s*auto/);
   assert.doesNotMatch(css,/\.catalog-card\s*\{[^}]*min-height:\s*0/);
+});
+test('save selector is not an editable path input',() => {
+  const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+  assert.match(html,/<select id="path"/);
+  assert.doesNotMatch(html,/<input id="path"/);
+  assert.equal(html.includes('save-paths'),false);
+});
+test('slot labels include account, slot number and complete path',() => {
+  const a='E:/Steam/userdata/111/3444020/remote/Slot0.json';
+  const b='E:/Steam/userdata/222/3444020/remote/Slot0.json';
+  assert.equal(saveLabel(a),`111 · 0号存档 · ${a}`);
+  assert.equal(saveLabel(b),`222 · 0号存档 · ${b}`);
+  assert.equal(saveLabel('C:/copies/Slot0 copy.json'),'外部文件 · Slot0 copy.json · C:/copies/Slot0 copy.json');
+  assert.equal(saveLabel('C:\\copies\\Slot2.json'),'外部文件 · 2号存档 · C:\\copies\\Slot2.json');
 });
