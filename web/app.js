@@ -79,6 +79,7 @@ function render() {
   if (!save) return;
   updateState();
   document.querySelectorAll('[data-tab]').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
+  $('content').className = `${tab}-mode`;
   if (tab === 'numbers') { renderNumbers(); return; }
   const kind = tab === 'relics' ? 'relics' : 'lingyong';
   $('content').innerHTML = `
@@ -114,7 +115,7 @@ function slotCard(location, index, locked = false) {
   if (id === undefined) return `<div class="slot empty-slot"><span class="slot-number">${location === 'equipped' ? '槽' : '仓'} ${index+1}</span><span class="add-symbol">＋</span><span>空闲位置</span></div>`;
   return `<label class="slot ${selected ? 'selected' : ''}">
     <span class="slot-number">${location === 'equipped' ? '槽' : '仓'} ${index+1}</span>
-    <input type="checkbox" class="held-check" data-location="${location}" data-index="${index}" aria-label="选择${location === 'equipped' ? '上场' : '仓库'}灵俑 ${esc(item.name)} (第 ${index+1} 槽)" ${selected ? 'checked' : ''}>${item.derived ? '<span class="badge amber derived">衍生</span>' : ''}${portrait(item,'lingyong')}<strong>${esc(item.name)}</strong><small>ID ${id}</small>
+    <input type="checkbox" class="held-check" data-location="${location}" data-index="${index}" aria-label="选择${location === 'equipped' ? '上场' : '仓库'}灵俑 ${esc(item.name)} (第 ${index+1} 槽)" ${selected ? 'checked' : ''}>${item.derived ? '<span class="badge amber derived">衍生</span>' : ''}${portrait(item,'lingyong')}<strong class="held-name" title="ID ${id} ${esc(item.name)}"><span class="inline-id">ID ${id}</span> ${esc(item.name)}</strong>
   </label>`;
 }
 
@@ -151,7 +152,7 @@ function renderHeld() {
       <div class="held-relic-grid">${draft.relics.map((r,i) => {
         const item = itemFor(r.id,'relics');
         const selected = selectedRelics.has(i);
-        return `<label class="slot relic-held ${selected ? 'selected' : ''}" title="${esc(item.desc)}"><span class="slot-number">${i+1}</span><input type="checkbox" class="held-check" data-held-relic="${i}" aria-label="选择持有遗物 ${esc(item.name)} (第 ${i+1} 件)" ${selected ? 'checked' : ''}>${portrait(item,'relics')}<strong>${esc(item.name)}</strong><small>ID ${r.id} · ${r.ref === undefined ? '新增' : '原计数保留'}</small></label>`;
+        return `<label class="slot relic-held ${selected ? 'selected' : ''}" title="ID ${r.id} ${esc(item.name)}；${r.ref === undefined ? '新增' : '原计数保留'}；${esc(item.desc)}"><span class="slot-number">${i+1}${r.ref === undefined ? ' · 新' : ''}</span><input type="checkbox" class="held-check" data-held-relic="${i}" aria-label="选择持有遗物 ${esc(item.name)} (第 ${i+1} 件)" ${selected ? 'checked' : ''}>${portrait(item,'relics')}<strong class="held-name"><span class="inline-id">ID ${r.id}</span> ${esc(item.name)}</strong></label>`;
       }).join('') || '<p class="empty-state">尚未持有遗物，可在右侧多选添加。</p>'}</div>
       <div class="held-actions"><button id="delete-relics" class="danger" ${!selectedRelics.size ? 'disabled' : ''}>删除选中 (${selectedRelics.size})</button></div><p class="hint">选中只改变界面；删除后供台槽位联动，确认保存才写入文件。</p></section>`;
     $('held').onclick = null;
@@ -261,10 +262,10 @@ function renderDetail() {
 function renderNumbers() {
   const groups = [['金币与血量',['Coin','Hp','HpMax','AccHpLost']],['麻将对局',['InitSwapPaiTotal','SwapPaiTurnTotal','HuPaiSlotsCount']],['灵俑容量',['LingYongSlotNum','XiaoChouRepositorySlot']]];
   $('content').innerHTML = `<div class="page-title"><h2>数值编辑</h2><p>显示的是存档原始值。游戏可能因技能、遗物或 GameConfig 在运行时另行计算最终数值。</p></div>
-    ${groups.map(([title,keys]) => `<section class="panel number-panel"><div class="panel-heading"><h3>${title}</h3></div><div class="number-grid">${keys.map(key => {
+    <div class="number-sections">${groups.map(([title,keys],index) => `<section class="panel number-panel number-group-${index}"><div class="panel-heading"><h3>${title}</h3></div><div class="number-grid">${keys.map(key => {
       const field = boot.fields.find(f => f.key === key);
-      return `<label class="number-field"><strong>${esc(field.label)}</strong><input data-field="${key}" aria-label="${esc(field.label)}" type="text" inputmode="${field.integer ? 'numeric' : 'decimal'}" value="${esc(draft.fields[key])}"><small>读取值 ${esc(save.fields[key])}<span>${key}</span></small></label>`;
-    }).join('')}</div>${title === '灵俑容量' ? '<p class="hint">累计值可超过 8（供台加成），实际上场最多 8 个；遗物增删的槽位变化另行自动加减。仓库容量读取自存档，编辑时原版最多 4 个。</p>' : ''}</section>`).join('')}
+      return `<label class="number-field" title="${esc(key)}；读取值 ${esc(save.fields[key])}"><strong>${esc(field.label)}</strong><input data-field="${key}" aria-label="${esc(field.label)}" type="text" inputmode="${field.integer ? 'numeric' : 'decimal'}" value="${esc(draft.fields[key])}"><small>读取值 ${esc(save.fields[key])}</small></label>`;
+    }).join('')}</div></section>`).join('')}</div>
     <button id="reset-numbers">撤销数值页修改</button>`;
   for (const input of document.querySelectorAll('[data-field]')) input.oninput = () => { draft.fields[input.dataset.field] = input.value; updateState(); };
   $('reset-numbers').onclick = () => { draft.fields = {...save.fields}; render(); };
