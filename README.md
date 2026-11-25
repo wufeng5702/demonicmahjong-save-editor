@@ -4,7 +4,9 @@
 
 ## 使用
 
-从 GitHub Actions 的成功构建中下载 `DemonicMahjongSaveEditor-windows-amd64` 产物，解压其中的 ZIP，再双击 `DemonicMahjongSaveEditor.exe`。保留随包附带的许可文件。
+从仓库 Releases 下载 Windows x64 ZIP，解压后双击 `DemonicMahjongSaveEditor.exe`。保留随包附带的许可文件，并可用 `SHA256SUMS.txt` 校验下载。
+
+也可以从 GitHub Actions 的成功构建中下载测试产物。
 
 从源码构建后，双击 `bin/DemonicMahjongSaveEditor.exe`。
 
@@ -94,13 +96,17 @@ go run . --preview 127.0.0.1:8787 --save-dir .\save-copies
 
 ## GitHub Workflow
 
-`.github/workflows/ci.yml` 在 push、pull request 或手动触发时运行：
+`.github/workflows/ci.yml` 在分支 push、pull request 或手动触发时运行：
 
 1. 在 Windows runner 安装 Go 和 Node。
 2. 执行 Go 测试、前端检查、`go vet` 和 Windows x64 构建。
 3. 打包 EXE、说明文档和许可文件，上传 Actions artifact（保留 14 天）。
 
-工作流仅有仓库读取权限，第三方 Actions 固定完整 commit SHA。它不自动创建 Release、发布评论或推送分支；正式发行需要另行审核和发布。
+CI 仅有仓库读取权限，第三方 Actions 固定完整 commit SHA，不创建 Release、发布评论或推送分支。
+
+`.github/workflows/release.yml` 仅在 `vx.y.z` 标签推送时运行，例如 `v0.1.0`。它先测试并构建带版本号的 EXE，打包 ZIP 和 SHA-256 校验文件，再创建 Release。仅发布 job 拥有仓库写权限；先上传全部资产至草稿，成功后公开发布。已有 Release 不会被覆盖。
+
+发布说明来自 `.github/release-notes.md` 固定模板，不自动生成评论或发行说明。发布者应先审核版本和说明模板，再明确推送版本标签；普通分支推送不会发布 Release。
 
 ## 许可
 
