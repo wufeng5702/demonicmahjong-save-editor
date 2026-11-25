@@ -4,7 +4,9 @@
 
 ## 使用
 
-双击 `bin/DemonicMahjongSaveEditor-v0.1.exe` 或 `start.bat`。
+从 GitHub Actions 的成功构建中下载 `DemonicMahjongSaveEditor-windows-amd64` 产物，解压其中的 ZIP，再双击 `DemonicMahjongSaveEditor.exe`。保留随包附带的许可文件。
+
+从源码构建后，双击 `bin/DemonicMahjongSaveEditor.exe`。
 
 编辑正式存档前先正常退出游戏，避免游戏退出时再次保存并覆盖修改。
 
@@ -40,7 +42,7 @@
 缓存目录：`%LOCALAPPDATA%\DemonicMahjongSaveEditor\cache`。首次使用需要联网；也可以指定本地图鉴：
 
 ```powershell
-.\bin\DemonicMahjongSaveEditor-v0.1.exe --data E:\DemonicMahjong\wiki\web_src\data.json --icons E:\DemonicMahjong\wiki\output\site\icons
+.\DemonicMahjongSaveEditor.exe --data .\resources\data.json --icons .\resources\icons
 ```
 
 存档文件、路径、备份和数值不上传到网站。网络仅用于下载图鉴与图标。更新数据不会自动删除存档中的未知物品。
@@ -58,25 +60,51 @@
 
 ## 构建与测试
 
-Windows，Go 1.26+，Wails v3.1.0。前端无框架和 npm 依赖；Node 仅用于可选的逻辑测试。运行 EXE 需要 WebView2。
+开发需要 Windows、Go 1.26+ 和 Node.js 24+。Wails v3.1.0 通过 Go 模块下载，无需额外安装 Wails CLI。前端无框架和 npm 依赖。运行构建后的 EXE 不需要 Go 或 Node，只需要 WebView2。
 
 ```powershell
-.\build.ps1
+git clone https://github.com/wufeng5702/demonicmahjong-save-editor.git
+cd demonicmahjong-save-editor
+.\build.ps1 -Version dev
 go test ./... -v
 go vet ./...
 node --test tests/model.test.mjs
 ```
 
+开发时可用一条命令完成构建并启动：`./build.ps1 -Run`。不传 `-Run` 时只构建，适用于 CI。
+
+构建脚本执行全部测试、JavaScript 语法检查与 `go vet`，使用 `-trimpath` 移除编译路径，输出稳定文件名和第三方许可清单。自定义输出目录和版本：
+
+```powershell
+.\build.ps1 -Version v0.1.0 -OutputDir .\dist
+```
+
 桌面只读模式与浏览器只读预览：
 
 ```powershell
-.\bin\DemonicMahjongSaveEditor-v0.1.exe --readonly
-go run . --preview 127.0.0.1:8787 --save-dir C:\path\to\save-copies
+.\bin\DemonicMahjongSaveEditor.exe --readonly
+go run . --preview 127.0.0.1:8787 --save-dir .\save-copies
 ```
 
 浏览器预览只绑定本机，并且**不提供写入接口**。测试文件只写入临时目录，测试不会修改 Steam 正式存档。
 
 在项目目录启动浏览器预览时直接读取 `web/` 源文件，修改 HTML/CSS/JS 后刷新即可；正式 EXE 仍内嵌界面。
+
+测试在临时目录创建合成存档，网络测试使用本地 HTTP 测试服务器；不需要游戏安装目录、真实存档或相邻 wiki 项目。
+
+## GitHub Workflow
+
+`.github/workflows/ci.yml` 在 push、pull request 或手动触发时运行：
+
+1. 在 Windows runner 安装 Go 和 Node。
+2. 执行 Go 测试、前端检查、`go vet` 和 Windows x64 构建。
+3. 打包 EXE、说明文档和许可文件，上传 Actions artifact（保留 14 天）。
+
+工作流仅有仓库读取权限，第三方 Actions 固定完整 commit SHA。它不自动创建 Release、发布评论或推送分支；正式发行需要另行审核和发布。
+
+## 许可
+
+修改器源码采用 MIT 许可，见 [LICENSE](LICENSE)。游戏资料、图标及第三方组件的权利说明见 [NOTICE.md](NOTICE.md)。仓库与构建产物不包含真实存档、下载缓存或游戏资源。
 
 ## 结构
 
@@ -86,5 +114,5 @@ resources.go            在线图鉴与图标缓存
 internal/editor/        精确 JSON 替换、槽位校验、安全保存及测试
 web/                    原生 HTML/CSS/JS 页面
 tests/                  前端逻辑测试
-build.ps1 / start.bat    构建与启动
+build.ps1               测试、构建及可选启动
 ```

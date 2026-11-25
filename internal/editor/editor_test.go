@@ -231,10 +231,13 @@ func TestManyDuplicateRelicsHaveNoGameQuantityCap(t *testing.T) {
 	}
 }
 
-func TestRealSaveCopiesRemainUnchanged(t *testing.T) {
-	dir := os.Getenv("SAVE_EDITOR_FIXTURES")
-	if dir == "" {
-		t.Skip("optional integration test uses explicitly provided save copies")
+func TestSaveCopiesRemainUnchanged(t *testing.T) {
+	dir := t.TempDir()
+	for slot := 0; slot < 2; slot++ {
+		raw := bytes.Replace(fixture(), []byte(`"XiaoChouRepositorySlot":4`), []byte(`"XiaoChouRepositorySlot":`+strconv.Itoa(2+slot*2)), 1)
+		if err := os.WriteFile(filepath.Join(dir, "Slot"+strconv.Itoa(slot)+".json"), raw, 0600); err != nil {
+			t.Fatal(err)
+		}
 	}
 	paths, err := filepath.Glob(filepath.Join(dir, "Slot*.json"))
 	if err != nil {
@@ -251,7 +254,7 @@ func TestRealSaveCopiesRemainUnchanged(t *testing.T) {
 			t.Fatalf("%s: %v", path, err)
 		}
 		if !bytes.Equal(raw, next) {
-			t.Fatal("real-save no-op changed bytes")
+			t.Fatal("save-copy no-op changed bytes")
 		}
 		request := req(raw)
 		request.Fields = map[string]string{"Coin": "1000000.25"}

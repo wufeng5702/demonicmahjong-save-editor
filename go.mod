@@ -1,4 +1,4 @@
-module demonicmahjong-save-editor
+module github.com/wufeng5702/demonicmahjong-save-editor
 
 go 1.26.0
 

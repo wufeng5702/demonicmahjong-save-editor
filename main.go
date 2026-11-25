@@ -14,12 +14,14 @@ import (
 	"regexp"
 	"strings"
 
-	"demonicmahjong-save-editor/internal/editor"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 )
 
 //go:embed all:web
 var assets embed.FS
+
+var version = "dev"
 
 func main() {
 	data := flag.String("data", "", "图鉴 data.json 路径")
@@ -49,11 +51,8 @@ func main() {
 	if !strings.HasPrefix(absolute, "https://") {
 		absolute, _ = filepath.Abs(*data)
 	}
-	if *icons == "" {
-		*icons = filepath.Join(filepath.Dir(filepath.Dir(absolute)), "output", "site", "icons")
-		if _, err := os.Stat(*icons); err != nil {
-			*icons = filepath.Join(filepath.Dir(absolute), "icons")
-		}
+	if *icons == "" && !strings.HasPrefix(absolute, "https://") {
+		*icons = filepath.Join(filepath.Dir(absolute), "icons")
 	}
 	s := &Service{catalog: cat, dataPath: absolute, icons: *icons, saveDir: *saveDir, readOnly: *readOnly || *preview != "", client: client, cache: cache, source: source}
 	web, _ := fs.Sub(assets, "web")
@@ -164,7 +163,7 @@ func main() {
 	})
 	s.app = app
 	app.RegisterService(application.NewService(s))
-	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "我在地府打麻将 · 存档编辑器", Width: 1440, Height: 860, MinWidth: 1050, MinHeight: 760})
+	app.Window.NewWithOptions(application.WebviewWindowOptions{Title: "我在地府打麻将 · 存档编辑器 " + version, Width: 1440, Height: 860, MinWidth: 1050, MinHeight: 760})
 	if err = app.Run(); err != nil {
 		fatal(err)
 	}

@@ -7,7 +7,7 @@ import (
 	"path/filepath"
 	"testing"
 
-	"demonicmahjong-save-editor/internal/editor"
+	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 )
 
 func TestOnlineCatalogKeepsLastValidCache(t *testing.T) {

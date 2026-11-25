@@ -9,7 +9,7 @@ import (
 	"path/filepath"
 	"time"
 
-	"demonicmahjong-save-editor/internal/editor"
+	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 )
 
 const website = "https://demonicmahjong.wufeng.site/wiki"
@@ -114,6 +114,9 @@ func (s *Service) icon(kind, id string) ([]byte, string, error) {
 				return raw, "image/webp", nil
 			}
 		}
+	}
+	if s.icons == "" {
+		return nil, "", fmt.Errorf("图标暂不可用")
 	}
 	raw, err := os.ReadFile(filepath.Join(s.icons, kind, id+".png"))
 	return raw, "image/png", err

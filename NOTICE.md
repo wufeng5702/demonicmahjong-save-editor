@@ -1,0 +1,10 @@
+# 第三方资料与许可范围
+
+本仓库的 MIT 许可仅适用于修改器自身的源码。
+
+- 《我在地府打麻将》的名称、图鉴数据和游戏图标属于各自权利人；它们不包含在本仓库或构建包中。
+- 默认图鉴来源为 https://demonicmahjong.wufeng.site/wiki/ 。下载和缓存这些资源不改变其权利归属。
+- 应用依赖 Wails v3 和 Go 模块，依赖版本由 `go.mod`、`go.sum` 固定。构建生成的 `THIRD_PARTY_NOTICES.txt` 包含 Go 标准库及实际链接依赖的许可全文，分发 EXE 时应一并保留。
+- Windows 运行需要 Microsoft WebView2，WebView2 由 Microsoft 单独提供，本构建包不包含其安装程序。
+
+修改存档可能影响游戏进度。使用前自行备份，先用存档副本验证；作者不保证所有游戏版本和运行时效果均兼容。

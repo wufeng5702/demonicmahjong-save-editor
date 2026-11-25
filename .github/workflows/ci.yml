@@ -1,0 +1,47 @@
+name: Windows build and tests
+
+on:
+  push:
+  pull_request:
+  workflow_dispatch:
+
+permissions:
+  contents: read
+
+concurrency:
+  group: ${{ github.workflow }}-${{ github.ref }}
+  cancel-in-progress: true
+
+jobs:
+  windows:
+    runs-on: windows-latest
+    timeout-minutes: 20
+    defaults:
+      run:
+        shell: pwsh
+    steps:
+      - uses: actions/checkout@3d3c42e5aac5ba805825da76410c181273ba90b1 # v7.0.1
+        with:
+          persist-credentials: false
+      - uses: actions/setup-go@d8cbb8045d7f43706b9177cceb36c1f91a6644d5 # v7.1.0
+        with:
+          go-version-file: go.mod
+          cache: true
+      - uses: actions/setup-node@949feb2413d6458794dcd2491c4babbbce0c15c1 # v7.1.0
+        with:
+          node-version: '24'
+      - name: Test, vet and build
+        run: |
+          $version = "dev-$($env:GITHUB_SHA.Substring(0, 7))"
+          if ($env:GITHUB_REF_TYPE -eq 'tag') { $version = $env:GITHUB_REF_NAME }
+          .\build.ps1 -Version $version
+      - name: Package Windows executable
+        run: |
+          New-Item -ItemType Directory -Path dist -Force | Out-Null
+          Compress-Archive -Path bin/DemonicMahjongSaveEditor.exe,bin/THIRD_PARTY_NOTICES.txt,README.md,LICENSE,NOTICE.md -DestinationPath dist/DemonicMahjongSaveEditor-windows-amd64.zip -Force
+      - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
+        with:
+          name: DemonicMahjongSaveEditor-windows-amd64-${{ github.sha }}
+          path: dist/DemonicMahjongSaveEditor-windows-amd64.zip
+          if-no-files-found: error
+          retention-days: 14

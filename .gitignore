@@ -1,2 +1,12 @@
 bin/
 .agent/
+dist/
+.cache/
+.env
+.env.*
+!.env.example
+*.bak
+*.tmp
+Slot*.json
+/data.json
+/icons/

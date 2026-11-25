@@ -10,8 +10,8 @@ import (
 	"strings"
 	"sync"
 
-	"demonicmahjong-save-editor/internal/editor"
 	"github.com/wailsapp/wails/v3/pkg/application"
+	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 	"golang.org/x/sys/windows/registry"
 )
 
@@ -160,13 +160,28 @@ func (s *Service) detectSaves() []string {
 		}
 		return paths
 	}
-	roots := []string{filepath.Join(os.Getenv("ProgramFiles(x86)"), "Steam"), `E:\Program Files (x86)\Steam`}
-	key, err := registry.OpenKey(registry.CURRENT_USER, `Software\Valve\Steam`, registry.QUERY_VALUE)
-	if err == nil {
-		value, _, err := key.GetStringValue("SteamPath")
+	roots := []string{}
+	for _, entry := range []struct {
+		hive        registry.Key
+		path, value string
+	}{
+		{registry.CURRENT_USER, `Software\Valve\Steam`, "SteamPath"},
+		{registry.LOCAL_MACHINE, `SOFTWARE\WOW6432Node\Valve\Steam`, "InstallPath"},
+		{registry.LOCAL_MACHINE, `SOFTWARE\Valve\Steam`, "InstallPath"},
+	} {
+		key, err := registry.OpenKey(entry.hive, entry.path, registry.QUERY_VALUE)
+		if err != nil {
+			continue
+		}
+		value, _, err := key.GetStringValue(entry.value)
 		key.Close()
-		if err == nil {
+		if err == nil && value != "" {
 			roots = append(roots, value)
+		}
+	}
+	for _, name := range []string{"ProgramFiles(x86)", "ProgramFiles"} {
+		if base := os.Getenv(name); base != "" {
+			roots = append(roots, filepath.Join(base, "Steam"))
 		}
 	}
 	seen := map[string]bool{}
