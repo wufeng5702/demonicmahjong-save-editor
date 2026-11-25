@@ -72,7 +72,6 @@ function updateState() {
   $('preview').disabled = false;
   $('save').disabled = boot.readOnly || !dirty;
   $('backups').disabled = false;
-  $('summary').textContent = dirty ? '修改尚未写入存档，请预览后确认保存。' : '读取与浏览不会修改存档；发现记录和解锁列表不在编辑范围。';
 }
 
 function render() {

@@ -1,5 +1,6 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
+import { readFileSync } from 'node:fs';
 import { slotState, requestFor, matches, isDirty, selectionFits } from '../web/model.js';
 
 const save = {path:'Slot0.json',hash:'unchanged',fields:{Coin:'79228162514264337593543950335.0',LingYongSlotNum:'5',XiaoChouRepositorySlot:'4'},equipped:[1,2],warehouse:[],relics:[{ref:0,id:77}]};
@@ -30,4 +31,10 @@ test('derived items visible by default, search and filters',() => {
 test('batch add requires enough free slots; no partial additions',() => {
   assert.equal(selectionFits(0,4),false);assert.equal(selectionFits(2,2),true);
   assert.equal(selectionFits(3,2),false);assert.equal(selectionFits(1,0),false);
+});
+test('removed footer has no dangling DOM references',() => {
+  const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+  const script=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+  assert.equal(html.includes('<footer'),false);
+  assert.equal(script.includes("$('summary')"),false);
 });

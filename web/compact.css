@@ -97,7 +97,6 @@
 .editor-app .number-field input { font-size: 18px; padding: 6px 10px; }
 .editor-app .number-field small { white-space: nowrap; overflow: hidden; text-overflow: ellipsis; }
 .editor-app #reset-numbers { align-self: flex-start; flex-shrink: 0; }
-.editor-app > footer { position: static; flex-shrink: 0; padding: 7px 20px; font-size: 11px; }
 @media (max-height: 760px) {
   .editor-app .slot { padding-top: 20px; min-height: 80px; gap: 2px; }
   .editor-app .slot .portrait { width: 34px; height: 34px; }
