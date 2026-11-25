@@ -47,6 +47,10 @@
 .editor-app .lingyong-mode #held > .panel:first-child { flex: 1.5; }
 .editor-app .warehouse { margin-top: 0; }
 .editor-app .panel-heading { flex-shrink: 0; gap: 10px; margin-bottom: 10px; }
+.editor-app #held .panel-heading { flex-wrap: wrap; }
+.editor-app .panel-controls { display: flex; gap: 6px; margin-left: auto; }
+.editor-app .panel-controls .select-all { margin-left: 0; }
+.editor-app .panel-controls button { padding: 5px 8px; font-size: 11px; white-space: nowrap; }
 .editor-app h3 { font-size: 17px; }
 .editor-app .slots {
   flex: 1;

@@ -148,13 +148,13 @@ function syncHeldSelection() {
 function renderHeld() {
   const slots = slotState(save, draft, boot.slotRules);
   if (tab === 'relics') {
-    $('held').innerHTML = `<section class="panel"><div class="panel-heading"><h3>持有遗物</h3><span class="badge">${draft.relics.length} 个</span><button id="select-all-relics" class="small select-all">${selectedRelics.size === draft.relics.length && draft.relics.length ? '取消全选' : '全选'}</button></div>
+    $('held').innerHTML = `<section class="panel"><div class="panel-heading"><h3>持有遗物</h3><span class="badge">${draft.relics.length} 个</span><div class="panel-controls"><button id="delete-relics" class="small danger" ${!selectedRelics.size ? 'disabled' : ''}>删除选中 (${selectedRelics.size})</button><button id="select-all-relics" class="small select-all">${selectedRelics.size === draft.relics.length && draft.relics.length ? '取消全选' : '全选'}</button></div></div>
       <div class="held-relic-grid">${draft.relics.map((r,i) => {
         const item = itemFor(r.id,'relics');
         const selected = selectedRelics.has(i);
         return `<label class="slot relic-held ${selected ? 'selected' : ''}" title="ID ${r.id} ${esc(item.name)}；${r.ref === undefined ? '新增' : '原计数保留'}；${esc(item.desc)}"><span class="slot-number">${i+1}${r.ref === undefined ? ' · 新' : ''}</span><input type="checkbox" class="held-check" data-held-relic="${i}" aria-label="选择持有遗物 ${esc(item.name)} (第 ${i+1} 件)" ${selected ? 'checked' : ''}>${portrait(item,'relics')}<strong class="held-name"><span class="inline-id">ID ${r.id}</span> ${esc(item.name)}</strong></label>`;
       }).join('') || '<p class="empty-state">尚未持有遗物，可在右侧多选添加。</p>'}</div>
-      <div class="held-actions"><button id="delete-relics" class="danger" ${!selectedRelics.size ? 'disabled' : ''}>删除选中 (${selectedRelics.size})</button></div><p class="hint">选中只改变界面；删除后供台槽位联动，确认保存才写入文件。</p></section>`;
+      <p class="hint">选中只改变界面；删除后供台槽位联动，确认保存才写入文件。</p></section>`;
     $('held').onclick = null;
     $('held').onchange = event => {
       const checkbox = event.target.closest('[data-held-relic]');
@@ -168,13 +168,11 @@ function renderHeld() {
     $('delete-relics').onclick = () => { draft.relics = draft.relics.filter((_,i) => !selectedRelics.has(i)); selectedRelics.clear(); render(); };
     return;
   }
-  $('held').innerHTML = `<section class="panel"><div class="panel-heading"><h3>上场灵俑</h3><span class="badge ${draft.equipped.length > slots.limit ? 'amber' : ''}">${draft.equipped.length} / ${slots.limit}</span><button class="small select-all" data-all="equipped">${selectedEquipped.size === draft.equipped.length && draft.equipped.length ? '取消全选' : '全选'}</button></div>
+  $('held').innerHTML = `<section class="panel"><div class="panel-heading"><h3>上场灵俑</h3><span class="badge ${draft.equipped.length > slots.limit ? 'amber' : ''}">${draft.equipped.length} / ${slots.limit}</span><div class="panel-controls"><button class="small" data-move="equipped" ${!selectedEquipped.size ? 'disabled' : ''}>移入仓库 (${selectedEquipped.size})</button><button data-delete="equipped" class="small danger" ${!selectedEquipped.size ? 'disabled' : ''}>删除选中 (${selectedEquipped.size})</button><button class="small select-all" data-all="equipped">${selectedEquipped.size === draft.equipped.length && draft.equipped.length ? '取消全选' : '全选'}</button></div></div>
     <div class="slots">${Array.from({length:8},(_,i) => slotCard('equipped',i,i >= slots.limit && i >= draft.equipped.length)).join('')}</div>
-    <div class="held-actions"><button data-move="equipped" ${!selectedEquipped.size ? 'disabled' : ''}>移入仓库 (${selectedEquipped.size})</button><button data-delete="equipped" class="danger" ${!selectedEquipped.size ? 'disabled' : ''}>删除选中 (${selectedEquipped.size})</button></div>
     <p class="hint">点击多选。删除先作用于界面，保存前会预览并确认。</p></section>
-    <section class="panel warehouse"><div class="panel-heading"><h3>灵俑仓库</h3><span class="badge ${draft.warehouse.length > slots.warehouse ? 'amber' : ''}">${draft.warehouse.length} / ${slots.warehouse}</span><button class="small select-all" data-all="warehouse">${selectedWarehouse.size === draft.warehouse.length && draft.warehouse.length ? '取消全选' : '全选'}</button></div>
+    <section class="panel warehouse"><div class="panel-heading"><h3>灵俑仓库</h3><span class="badge ${draft.warehouse.length > slots.warehouse ? 'amber' : ''}">${draft.warehouse.length} / ${slots.warehouse}</span><div class="panel-controls"><button class="small" data-move="warehouse" ${!selectedWarehouse.size ? 'disabled' : ''}>移至上场 (${selectedWarehouse.size})</button><button data-delete="warehouse" class="small danger" ${!selectedWarehouse.size ? 'disabled' : ''}>删除选中 (${selectedWarehouse.size})</button><button class="small select-all" data-all="warehouse">${selectedWarehouse.size === draft.warehouse.length && draft.warehouse.length ? '取消全选' : '全选'}</button></div></div>
     <div class="slots">${Array.from({length:Math.min(64,Math.max(slots.warehouse,draft.warehouse.length))},(_,i) => slotCard('warehouse',i)).join('') || '<p class="hint">仓库容量为 0。</p>'}</div>
-    <div class="held-actions"><button data-move="warehouse" ${!selectedWarehouse.size ? 'disabled' : ''}>移至上场 (${selectedWarehouse.size})</button><button data-delete="warehouse" class="danger" ${!selectedWarehouse.size ? 'disabled' : ''}>删除选中 (${selectedWarehouse.size})</button></div>
     <p class="hint">默认 2 个，天赋可额外增加 2 个。读取当前存档容量，不重置天赋。</p></section>`;
   $('held').onchange = event => {
     const checkbox = event.target.closest('[data-location]');
