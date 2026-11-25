@@ -1,0 +1,31 @@
+<!doctype html>
+<html lang="zh-CN">
+<head>
+  <meta charset="utf-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>我在地府打麻将 · 存档编辑器</title>
+  <link rel="stylesheet" href="/style.css">
+</head>
+<body>
+  <header class="app-header">
+    <div class="brand"><span class="logo">俑</span><h1>我在地府打麻将 · 存档编辑器</h1><span class="badge">本地工具</span></div>
+    <div id="status" class="notice" role="status" hidden></div>
+    <div class="source-area"><div class="source" id="source">正在读取图鉴…</div><button id="refresh-data" class="small">更新图鉴</button></div>
+  </header>
+  <section class="toolbar" aria-label="存档选择">
+    <input id="path" aria-label="存档路径" list="save-paths" placeholder="选择存档，或输入完整的 .json 路径">
+    <datalist id="save-paths"></datalist>
+    <button id="choose">选择存档</button><button id="load">重新加载</button>
+  </section>
+  <nav aria-label="编辑栏目">
+    <div class="tabs"><button data-tab="numbers">数值</button><button data-tab="lingyong" class="active">灵俑</button><button data-tab="relics">遗物</button></div>
+    <span id="dirty" class="badge neutral">尚未加载</span>
+    <button id="backups">备份恢复</button><button id="preview">预览修改</button><button id="save" class="primary">保存存档</button>
+  </nav>
+  <main id="content"><section class="panel empty-state">选择存档后开始编辑。启动和加载不会写入任何文件。</section></main>
+  <footer><span id="summary">所有修改先保存在界面中，确认保存后才写入文件。</span><span>自动备份 · 冲突检测 · 保留大数字原文</span></footer>
+  <div id="toast" role="alert" hidden></div>
+  <dialog id="dialog"><div id="dialog-content"></div></dialog>
+  <script type="module" src="/app.js"></script>
+</body>
+</html>
