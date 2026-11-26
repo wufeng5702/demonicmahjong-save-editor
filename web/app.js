@@ -224,15 +224,29 @@ function renderHeld() {
 }
 
 function renderLibrary() {
-  const kind = tab === 'relics' ? 'relics' : 'lingyong';
+  const isRelic = tab === 'relics';
+  const kind = isRelic ? 'relics' : 'lingyong';
+  const heldIds = isRelic ? draft.relics.map(relic => relic.id) : [...draft.equipped, ...draft.warehouse];
+  const heldCounts = new Map();
+  for (const id of heldIds) heldCounts.set(id, (heldCounts.get(id) ?? 0) + 1);
   for (const id of selectedCandidates) if (!catalogs[kind][id]) selectedCandidates.delete(id);
   const items = boot.catalog[kind].filter(item => matches(item,search,rarity,tag));
   $('result-count').textContent = `${items.length} 个候选`;
   $('catalog-grid').innerHTML = items.map(item => {
-    const heldCount = kind === 'relics' ? draft.relics.filter(r => r.id === item.id).length : Number(draft.equipped.includes(item.id) || draft.warehouse.includes(item.id));
-    const owned = kind === 'lingyong' && heldCount >= 1;
+    const heldCount = heldCounts.get(item.id) ?? 0;
+    const owned = !isRelic && heldCount >= 1;
     const selected = selectedCandidates.has(item.id);
-    return `<label class="catalog-card with-effect ${owned ? 'owned' : ''} ${selected ? 'selected' : ''}"><input type="checkbox" class="candidate-check" data-candidate="${item.id}" aria-label="选择 ${esc(item.name)} (ID ${item.id})" ${selected ? 'checked' : ''} ${owned ? 'disabled' : ''}>${portrait(item,kind)}<div><strong>${esc(item.name)}</strong><small class="rarity r${item.rarity}">ID ${item.id} · ${esc(item.rar)}${heldCount ? ` · 已持有 ${heldCount}` : ''}</small></div><span class="tags">${esc(item.tags.slice(0,4).join(' / '))}</span><p class="card-effect">${esc(item.desc)}</p></label>`;
+    const name = esc(item.name);
+    const tags = esc(item.tags.join(' / '));
+    return `<label class="catalog-card with-effect ${owned ? 'owned' : ''} ${selected ? 'selected' : ''}">
+      <input type="checkbox" class="candidate-check" data-candidate="${item.id}" aria-label="选择 ${name} (ID ${item.id})" ${selected ? 'checked' : ''} ${owned ? 'disabled' : ''}>
+      ${portrait(item,kind)}
+      <div class="candidate-info">
+        <div class="candidate-title"><strong title="${name}">${name}</strong>${heldCount ? `<span class="badge candidate-count" title="已持有 ${heldCount} ${isRelic ? '件' : '个'}">×${heldCount}</span>` : ''}</div>
+        <div class="candidate-meta"><small class="rarity r${item.rarity}">ID ${item.id} · ${esc(item.rar)}</small>${tags ? `<span class="tags" title="${tags}">${tags}</span>` : ''}</div>
+      </div>
+      <p class="card-effect">${esc(item.desc)}</p>
+    </label>`;
   }).join('') || '<p class="empty-state">没有匹配的物品。</p>';
   $('catalog-grid').onchange = event => {
     const checkbox = event.target.closest('[data-candidate]');
