@@ -76,7 +76,7 @@ jobs:
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
           $zip = "dist/DemonicMahjongSaveEditor-$($env:RELEASE_TAG)-windows-amd64.zip"
-          gh release create $env:RELEASE_TAG $zip dist/SHA256SUMS.txt --verify-tag --draft --title "我在地府打麻将存档编辑器 $($env:RELEASE_TAG)" --notes-file .github/release-notes.md
+          gh release create $env:RELEASE_TAG $zip dist/SHA256SUMS.txt --verify-tag --draft --title "$env:RELEASE_TAG" --notes-file .github/release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Release creation or asset upload failed; no existing release is overwritten.' }
           gh release edit $env:RELEASE_TAG --draft=false
           if ($LASTEXITCODE -ne 0) { throw 'Release remains a draft because publishing failed.' }
