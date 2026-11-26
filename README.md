@@ -1,131 +1,32 @@
 # 我在地府打麻将 · 存档编辑器
 
-独立 Windows 桌面工具，使用 **Go + Wails v3 + 原生 HTML/CSS/JS**。不依赖 Python、Node 运行环境，也不启动用于写存档的网络服务。
+《我在地府打麻将》Steam 版的 Windows 存档编辑器。可以搜索灵俑、查看效果，批量调整上场与仓库配置。保存前可以预览改动，写入时会自动备份原存档。
 
-## 使用
+**[下载最新 Windows x64 版](https://github.com/wufeng5702/demonicmahjong-save-editor/releases/latest)** · 运行需要 Microsoft Edge WebView2 Runtime。
 
-从仓库 Releases 下载 Windows x64 ZIP，解压后双击 `DemonicMahjongSaveEditor.exe`。保留随包附带的许可文件，并可用 `SHA256SUMS.txt` 校验下载。
+![灵俑编辑界面](docs/images/lingyong-editor.png)
 
-也可以从 GitHub Actions 的成功构建中下载测试产物。
+## 灵俑编辑
 
-从源码构建后，双击 `bin/DemonicMahjongSaveEditor.exe`。
+- 按名称、ID 或效果搜索，用稀有度和标签筛选。候选卡片直接显示灵俑效果。
+- 多选添加、移除灵俑，或在上场与仓库之间批量移动。移动会保留成长记录。
+- 界面显示上场上限和仓库容量。选中数量超过空位时，不能添加到对应位置。
 
-编辑正式存档前先正常退出游戏，避免游戏退出时再次保存并覆盖修改。
+## 快速开始
 
-1. 从不可输入的下拉框选择存档，显示“用户ID · 1号存档 · 完整路径”。显示编号与游戏一致：`Slot0/1/2.json` 分别显示为 1／2／3 号，文件名与读写路径不变。也可以通过“手动选择文件”打开 `.json` 副本，读取成功后加入下拉框；无法识别 Steam 账号时标为“外部文件”。
-2. 在“数值／灵俑／遗物”页面编辑。此时不会写入文件。
-3. 点击“预览修改”。
-4. 核对差异和注意事项，勾选确认，再保存。
+1. 退出游戏，解压下载的 ZIP，运行 `DemonicMahjongSaveEditor.exe`。
+2. 在下拉框选择 Steam 存档，或用 **手动选择文件** 打开一份 `.json` 存档副本。
+3. 打开 **灵俑** 页，勾选目标，然后点击对应的添加、删除或移动按钮。
+4. 点击 **预览修改**，核对差异后勾选确认，再点击 **确认保存并备份**。
 
-请先用**存档副本**试用，再用于正式存档。Steam 同步可能改变文件；保存前检测文件变化，并拒绝覆盖已经变化的存档。
+备份放在原存档旁边。需要撤回时可在 **备份恢复** 中选择备份，恢复会替换整份存档。
 
-## 功能
+## 使用说明
 
-- 数值：金币、血量、最大血量、累计已损失血量、开局调换牌数、每回合摸牌数、和牌槽数量。
-- 灵俑容量：保留累计槽位原始值（可超过 8），实际上场数量为 `min(累计槽位, 8)`；仓库容量读取自存档，通常为 2～4。
-- 上场与仓库：网格、多选删除、批量移动。移动保留成长，删除会移除对应成长记录。
-- 灵俑候选：默认含衍生灵俑，排除 BOSS 和角色技能；效果直接显示在卡片中。多选添加，数量超出目标空位时禁用添加，后端再次校验。首次新增创建初始成长记录，已有同 ID 成长记录则保留；已持有同 ID 物品不能重复添加。
-- 遗物：持有网格多选删除，候选多选添加，卡片直接展示效果；每次为选中的每种遗物增加 1 件，可重复添加同种遗物，不设置游戏持有数量上限。
-- 牌库：固定四行展示 1～9 万、1～9 筒、1～9 索、四风和三元牌；支持按万／筒／索／字／奇／偶快速多选，批量修改牌面分加成、牌灵和宝牌。卡片只显示原始牌面与牌灵／宝牌两行，不显示牌面分；负面效果用警示色标注。
-- 供台／莲台：仅根据明确的“灵俑槽±N”描述联动累计槽位。减槽后若物品超限，必须先处理物品，不会自动删除。
-- 保存前预览，自动备份，备份恢复。
+- 存档只在本机处理。首次启动需要联网下载[图鉴](https://demonicmahjong.wufeng.site/wiki/)数据；已有缓存后可以离线使用。
+- 游戏运行中，或存档已被游戏、Steam 云同步等改动时，工具会拒绝覆盖。
+- 适配 `Version: 9` 的存档。灵俑的发现记录、解锁状态和商店解锁池保持原样。
 
-**不编辑发现／解锁记录，不改变商店解锁池。**
+## 开发与许可
 
-## 在线数据与离线缓存
-
-内嵌界面、应用图标和 34 张牌面图；牌灵、宝牌、灵俑、遗物等图标与图鉴数据默认在线读取：
-
-- `https://demonicmahjong.wufeng.site/wiki/data.json`
-- `https://demonicmahjong.wufeng.site/wiki/icons/lingyong/{ID}.webp`
-- `https://demonicmahjong.wufeng.site/wiki/icons/relics/{ID}.webp`
-- `https://demonicmahjong.wufeng.site/wiki/icons/pailing/{ID}.webp`
-- `https://demonicmahjong.wufeng.site/wiki/icons/baopai/{ID}.webp`
-
-牌库卡片只显示牌面本身，不再使用宝牌作为底图。
-
-启动时更新图鉴，“更新图鉴”按钮可手动刷新。网络失败或新数据无效时使用最近一次有效缓存；图标按图鉴版本缓存。缺少图标时显示占位，不影响存档编辑。
-
-缓存目录：`%LOCALAPPDATA%\DemonicMahjongSaveEditor\cache`。首次使用需要联网；也可以指定本地图鉴：
-
-```powershell
-.\DemonicMahjongSaveEditor.exe --data .\resources\data.json --icons .\resources\icons
-```
-
-存档文件、路径、备份和数值不上传到网站。网络仅用于下载图鉴与图标。更新数据不会自动删除存档中的未知物品。
-
-## 安全与限制
-
-- 适配当前 `Version: 9` 的存档结构；其他版本需先用副本验证。
-- 未修改的 JSON 字段保留原始字节；大数字不会经过 JavaScript Number 或 Go float64 回写。
-- 已有灵俑的成长、遗物的回合和触发计数保留原文；未知字段、未知物品不会被自动清理。
-- 牌库没有修改时保留 `WorkbenchPaiMianBindList` 原文；发生修改后按当前游戏的 34 种牌面规范化写回，未附加效果的牌写入 0。
-- 保存必须先生成同目录 `.save-editor.时间_随机值.bak`，再写临时文件、检查冲突并替换目标文件。
-- 检测到游戏运行或无法检测进程时，拒绝写入；保存过程中游戏启动也会取消保存。
-- 恢复备份是**整份恢复**，并先备份当前文件。只列出本修改器生成的备份。
-- 离线添加遗物**不等于游戏内拾取**：不生成随机诅咒、不改牌组、不销毁灵俑。除明确的灵俑槽增减外，其他拾取时数值变化不模拟。
-- 保存不会修补当前对局内部缓存。部分数值可能被 GameConfig、技能或遗物重算；实际游戏效果仍需验证。
-
-## 构建与测试
-
-开发需要 Windows、Go 1.27+ 和 Node.js 24+。项目使用 `encoding/json/v2` 和 `encoding/json/jsontext` 处理 JSON。Wails v3.1.0 通过 Go 模块下载，无需额外安装 Wails CLI。前端无框架和 npm 依赖。运行构建后的 EXE 不需要 Go 或 Node，只需要 WebView2。
-
-```powershell
-git clone https://github.com/wufeng5702/demonicmahjong-save-editor.git
-cd demonicmahjong-save-editor
-.\build.ps1 -Version dev
-go test ./... -v
-go vet ./...
-node --test tests/model.test.mjs
-```
-
-开发时可用一条命令完成构建并启动：`./build.ps1 -Run`。不传 `-Run` 时只构建，适用于 CI。
-
-构建脚本执行全部测试、JavaScript 语法检查与 `go vet`，使用 `-trimpath` 移除编译路径，输出稳定文件名和第三方许可清单。自定义输出目录和版本：
-
-```powershell
-.\build.ps1 -Version v0.1.0 -OutputDir .\dist
-```
-
-桌面只读模式与浏览器只读预览：
-
-```powershell
-.\bin\DemonicMahjongSaveEditor.exe --readonly
-go run . --preview 127.0.0.1:8787 --save-dir .\save-copies
-```
-
-浏览器预览只绑定本机，并且**不提供写入接口**。测试文件只写入临时目录，测试不会修改 Steam 正式存档。
-
-在项目目录启动浏览器预览时直接读取 `web/` 源文件，修改 HTML/CSS/JS 后刷新即可；正式 EXE 仍内嵌界面。
-
-测试在临时目录创建合成存档，网络测试使用本地 HTTP 测试服务器；不需要游戏安装目录、真实存档或相邻 wiki 项目。
-
-## GitHub Workflow
-
-`.github/workflows/ci.yml` 在分支 push、pull request 或手动触发时运行：
-
-1. 在 Windows runner 安装 Go 和 Node。
-2. 执行 Go 测试、前端检查、`go vet` 和 Windows x64 构建。
-3. 打包 EXE、说明文档和许可文件，上传 Actions artifact（保留 14 天）。
-
-CI 仅有仓库读取权限，第三方 Actions 固定完整 commit SHA，不创建 Release、发布评论或推送分支。
-
-`.github/workflows/release.yml` 仅在 `vx.y.z` 标签推送时运行，例如 `v0.1.0`。它先测试并构建带版本号的 EXE，打包 ZIP 和 SHA-256 校验文件，再创建 Release。仅发布 job 拥有仓库写权限；先上传全部资产至草稿，成功后公开发布。已有 Release 不会被覆盖。
-
-发布说明来自 `.github/release-notes.md` 固定模板，不自动生成评论或发行说明。发布者应先审核版本和说明模板，再明确推送版本标签；普通分支推送不会发布 Release。
-
-## 许可
-
-修改器源码采用 MIT 许可，见 [LICENSE](LICENSE)。应用图标、游戏资料及第三方组件的权利说明见 [NOTICE.md](NOTICE.md)。仓库与构建产物不包含真实存档、下载缓存或图鉴资源。
-
-## 结构
-
-```text
-main.go / service.go     Wails 窗口、文件选择、编辑服务
-resources.go            在线图鉴与图标缓存
-assets/paimian/         内嵌的 34 张牌面图
-internal/editor/        精确 JSON 替换、槽位校验、安全保存及测试
-web/                    原生 HTML/CSS/JS 页面
-tests/                  前端逻辑测试
-build.ps1               测试、构建及可选启动
-```
+[构建、测试和发布](docs/development.md) · [MIT 许可](LICENSE) · [第三方资料与许可范围](NOTICE.md)
