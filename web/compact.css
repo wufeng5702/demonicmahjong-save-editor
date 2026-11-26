@@ -76,7 +76,14 @@
 .editor-app .held-actions { flex-shrink: 0; margin-top: 8px; gap: 8px; }
 .editor-app #held .hint { display: none; }
 .editor-app .relics-mode #held > .panel { container-type: inline-size; }
-.editor-app .held-relic-grid { flex: 1; min-height: 0; max-height: none; }
+.editor-app .held-relic-grid {
+  flex: 1;
+  min-height: 0;
+  max-height: none;
+  align-content: start;
+  scrollbar-gutter: stable;
+}
+.editor-app .relic-held { height: 128px; }
 @container (min-width: 480px) {
   .editor-app .held-relic-grid { grid-template-columns: repeat(4,minmax(0,1fr)); }
 }
