@@ -8,6 +8,9 @@ on:
 permissions:
   contents: read
 
+env:
+  RELEASE_ARCHIVE: DemonicMahjongSaveEditor-windows-amd64.zip
+
 concurrency:
   group: release-${{ github.ref }}
   cancel-in-progress: false
@@ -39,7 +42,7 @@ jobs:
       - name: Package executable and checksum
         run: |
           New-Item -ItemType Directory -Path dist -Force | Out-Null
-          $name = "DemonicMahjongSaveEditor-$($env:RELEASE_TAG)-windows-amd64.zip"
+          $name = $env:RELEASE_ARCHIVE
           $zip = Join-Path dist $name
           Compress-Archive -Path bin/DemonicMahjongSaveEditor.exe,bin/THIRD_PARTY_NOTICES.txt,README.md,LICENSE,NOTICE.md -DestinationPath $zip -Force
           $hash = (Get-FileHash -Algorithm SHA256 $zip).Hash.ToLowerInvariant()
@@ -75,7 +78,7 @@ jobs:
           GH_REPO: ${{ github.repository }}
           RELEASE_TAG: ${{ github.ref_name }}
         run: |
-          $zip = "dist/DemonicMahjongSaveEditor-$($env:RELEASE_TAG)-windows-amd64.zip"
+          $zip = Join-Path dist $env:RELEASE_ARCHIVE
           gh release create $env:RELEASE_TAG $zip dist/SHA256SUMS.txt --verify-tag --draft --title "$env:RELEASE_TAG" --notes-file .github/release-notes.md
           if ($LASTEXITCODE -ne 0) { throw 'Release creation or asset upload failed; no existing release is overwritten.' }
           gh release edit $env:RELEASE_TAG --draft=false

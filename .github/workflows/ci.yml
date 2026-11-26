@@ -42,7 +42,7 @@ jobs:
           Compress-Archive -Path bin/DemonicMahjongSaveEditor.exe,bin/THIRD_PARTY_NOTICES.txt,README.md,LICENSE,NOTICE.md -DestinationPath dist/DemonicMahjongSaveEditor-windows-amd64.zip -Force
       - uses: actions/upload-artifact@cf430e030ddbb5b0abf93d22962f4752f3646cd9 # v7.0.2
         with:
-          name: DemonicMahjongSaveEditor-windows-amd64-${{ github.sha }}
+          name: DemonicMahjongSaveEditor-windows-amd64
           path: dist/DemonicMahjongSaveEditor-windows-amd64.zip
           if-no-files-found: error
           retention-days: 14
