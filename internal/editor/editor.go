@@ -29,6 +29,8 @@ type Snapshot struct {
 	Equipped  []int             `json:"equipped"`
 	Warehouse []int             `json:"warehouse"`
 	Relics    []HeldRelic       `json:"relics"`
+	Deck      []DeckCard        `json:"deck"`
+	DeckRows  int               `json:"deckRows"`
 }
 
 type Request struct {
@@ -38,6 +40,7 @@ type Request struct {
 	Equipped    []int             `json:"equipped"`
 	Warehouse   []int             `json:"warehouse"`
 	Relics      []RelicChoice     `json:"relics"`
+	Deck        *[]DeckValue      `json:"deck,omitempty"`
 	PreviewHash string            `json:"previewHash"`
 }
 
@@ -99,6 +102,13 @@ func validate(d *document) error {
 			return err
 		}
 	}
+	deckRaw, exists := d.values[deckField]
+	if !exists {
+		return fmt.Errorf("缺少存档字段 %s", deckField)
+	}
+	if _, err := parseDeck(deckRaw); err != nil {
+		return err
+	}
 	return nil
 }
 
@@ -157,6 +167,9 @@ func Load(path string) (*Snapshot, error) {
 		id, _ := relicID(raw)
 		result.Relics = append(result.Relics, HeldRelic{i, id})
 	}
+	deck, _ := parseDeck(d.values[deckField])
+	result.Deck = deck.cards
+	result.DeckRows = deck.rows
 	return result, nil
 }
 
@@ -179,6 +192,7 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 	if err = validate(d); err != nil {
 		return nil, nil, err
 	}
+	deckBefore, _ := parseDeck(d.values[deckField])
 	numbers, labels := map[string]string{}, map[string]string{}
 	for _, field := range Fields {
 		numbers[field.Key], labels[field.Key] = string(d.values[field.Key]), field.Label
@@ -291,6 +305,21 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 	if !bytes.Equal([]byte(marshal(warehouse)), []byte(marshal(oldWarehouse))) {
 		changes["AllXcpRepository"] = marshal(warehouse)
 	}
+	deckChanged := []string{}
+	if request.Deck != nil {
+		deckValues, err := normalizeDeckRequest(*request.Deck, deckBefore, catalog)
+		if err != nil {
+			return nil, nil, err
+		}
+		deckText, changed, err := buildDeck(deckBefore, deckValues)
+		if err != nil {
+			return nil, nil, err
+		}
+		deckChanged = changed
+		if deckText != string(d.values[deckField]) {
+			changes[deckField] = deckText
+		}
+	}
 	growth, _ := parse(d.values["Xcp"])
 	growthTokens := []string{}
 	removed, derivedAdded := false, false
@@ -372,6 +401,23 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 			}
 			if len(removedIDs) == 0 && len(addedIDs) == 0 {
 				value += "（顺序调整，计数保留）"
+			}
+		}
+		if key == deckField {
+			label = "牌库"
+			before = fmt.Sprintf("%d 条记录", deckBefore.rows)
+			value = "34 条记录"
+			if len(deckChanged) > 0 {
+				shown := deckChanged
+				if len(shown) > 8 {
+					shown = shown[:8]
+				}
+				value += "；修改：" + strings.Join(shown, "、")
+				if len(deckChanged) > len(shown) {
+					value += fmt.Sprintf(" 等 %d 种", len(deckChanged))
+				}
+			} else {
+				value += "（规范化）"
 			}
 		}
 		preview.Changes = append(preview.Changes, Change{key, label, before, value})

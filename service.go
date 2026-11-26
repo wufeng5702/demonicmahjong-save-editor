@@ -32,6 +32,7 @@ type Bootstrap struct {
 	DataPath  string                   `json:"dataPath"`
 	Saves     []string                 `json:"saves"`
 	Catalog   map[string][]editor.Item `json:"catalog"`
+	Tiles     []editor.TileDefinition  `json:"tiles"`
 	Fields    []editor.Field           `json:"fields"`
 	Running   bool                     `json:"running"`
 	ReadOnly  bool                     `json:"readOnly"`
@@ -53,9 +54,15 @@ func (s *Service) Bootstrap() (*Bootstrap, error) {
 			rules[id] = delta
 		}
 	}
-	return &Bootstrap{s.dataPath, s.detectSaves(), map[string][]editor.Item{
-		"lingyong": editor.SortedItems(s.catalog.Lingyong), "relics": editor.SortedItems(s.catalog.Relics),
-	}, editor.Fields, running, s.readOnly, rules, s.source, s.catalog.Version}, nil
+	return &Bootstrap{
+		DataPath: s.dataPath, Saves: s.detectSaves(), Fields: editor.Fields,
+		Catalog: map[string][]editor.Item{
+			"lingyong": editor.SortedItems(s.catalog.Lingyong), "relics": editor.SortedItems(s.catalog.Relics),
+			"pailing": editor.SortedItems(s.catalog.Pailing), "baopai": editor.SortedItems(s.catalog.Baopai),
+		},
+		Tiles: editor.CanonicalTiles(), Running: running, ReadOnly: s.readOnly,
+		SlotRules: rules, Source: s.source, Version: s.catalog.Version,
+	}, nil
 }
 
 func (s *Service) Load(path string) (*editor.Snapshot, error) { return editor.Load(path) }

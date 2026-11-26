@@ -4,6 +4,7 @@
 
 - 《我在地府打麻将》的名称、在线图鉴数据和物品图标属于各自权利人；图鉴数据与物品图标不包含在本仓库或构建包中。
 - 应用图标是用户提供图片的裁剪版本，仅用于识别本工具，不适用本仓库的 MIT 许可；原作品权利属于相应权利人。
+- `assets/paimian` 中的 34 张牌面图来自游戏资源，仅用于在存档编辑界面中识别牌面，不适用本仓库的 MIT 许可；原作品权利属于相应权利人。
 - 默认图鉴来源为 https://demonicmahjong.wufeng.site/wiki/ 。下载和缓存这些资源不改变其权利归属。
 - 应用依赖 Wails v3 和 Go 模块，依赖版本由 `go.mod`、`go.sum` 固定。构建生成的 `THIRD_PARTY_NOTICES.txt` 包含 Go 标准库及实际链接依赖的许可全文，分发 EXE 时应一并保留。
 - Windows 运行需要 Microsoft WebView2，WebView2 由 Microsoft 单独提供，本构建包不包含其安装程序。

@@ -1,7 +1,7 @@
 import test from 'node:test';
 import assert from 'node:assert/strict';
-import { readFileSync } from 'node:fs';
-import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel } from '../web/model.js';
+import { existsSync, readFileSync, readdirSync } from 'node:fs';
+import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel, deckKeysForGroup, toggleDeckKeys, warningEffect } from '../web/model.js';
 
 const save = {path:'Slot0.json',hash:'unchanged',fields:{Coin:'79228162514264337593543950335.0',LingYongSlotNum:'5',XiaoChouRepositorySlot:'4'},equipped:[1,2],warehouse:[],relics:[{ref:0,id:77}]};
 const copy = () => structuredClone(save);
@@ -18,6 +18,17 @@ test('requests retain numeric strings and original relic references',() => {
   const req=requestFor(save,draft);
   assert.equal(req.fields.Coin,'161461040910412030.0');assert.deepEqual(req.relics,[{ref:0},{id:3}]);
   assert.equal('HadXiaoChouList' in req,false);assert.equal('UnlockedLingYongList' in req,false);
+});
+test('deck is omitted until changed, then sends all canonical entries',() => {
+  const deck=Array.from({length:34},(_,index)=>({key:`tile${index}`,score:'0.0',baoId:0,lingId:0}));
+  const withDeck={...save,deck};
+  const draft=structuredClone(withDeck);
+  assert.equal(requestFor(withDeck,draft).deck,undefined);
+  draft.deck[0].score='20';
+  const request=requestFor(withDeck,draft);
+  assert.equal(request.deck.length,34);
+  assert.deepEqual(request.deck[0],{key:'tile0',score:'20',baoId:0,lingId:0});
+  assert.equal(isDirty(withDeck,draft),true);
 });
 test('dirty tracking and no-op requests',() => {
   const draft=copy();assert.equal(isDirty(save,draft),false);assert.deepEqual(requestFor(save,draft).fields,{});
@@ -54,6 +65,48 @@ test('save selector is not an editable path input',() => {
   assert.match(html,/<select id="path"/);
   assert.doesNotMatch(html,/<input id="path"/);
   assert.equal(html.includes('save-paths'),false);
+});
+test('deck tab and fixed four-row grid are present',() => {
+  const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+  const css=readFileSync(new URL('../web/compact.css',import.meta.url),'utf8');
+  const script=readFileSync(new URL('../web/app.js',import.meta.url),'utf8');
+  assert.match(html,/data-tab="deck">牌库/);
+  assert.match(css,/grid-template-columns:repeat\(9,minmax\(0,1fr\)\)/);
+  assert.match(script,/\[\.\.\.honors\.slice\(0,4\),null,\.\.\.honors\.slice\(4\),null\]/);
+  assert.doesNotMatch(script,/deck-face-stack|261 \* 0\.8|paimianDimensions/);
+  assert.match(script,/class="deck-summary\$\{lingClass\}"/);
+  assert.match(script,/class="deck-summary\$\{baoClass\}"/);
+  assert.doesNotMatch(script,/deck-summary score|deck-bao-text|showBaoText/);
+  assert.equal(existsSync(new URL('../assets/baopai/',import.meta.url)),false);
+  assert.equal(existsSync(new URL('../web/paimian-dimensions.js',import.meta.url)),false);
+  assert.doesNotMatch(script,/class="deck-name"/);
+  assert.match(script,/quickButton\('wan','万'\).*quickButton\('tong','筒'\).*quickButton\('suo','索'\).*quickButton\('zi','字'\).*quickButton\('odd','奇'\).*quickButton\('even','偶'\)/s);
+});
+test('deck quick selection supports suits, honors, odd and even numbers',() => {
+  const deck=[...Array.from({length:9},(_,i)=>({key:`wan${i+1}`,group:'万'})),...Array.from({length:9},(_,i)=>({key:`tong${i+1}`,group:'筒'})),...Array.from({length:9},(_,i)=>({key:`suo${i+1}`,group:'索'})),...['dong','nan','xi','bei','zhong','fa','bai'].map(key=>({key,group:'字'}))];
+  assert.equal(deckKeysForGroup(deck,'wan').length,9);
+  assert.equal(deckKeysForGroup(deck,'zi').length,7);
+  assert.equal(deckKeysForGroup(deck,'odd').length,15);
+  assert.equal(deckKeysForGroup(deck,'even').length,12);
+  const selected=new Set();
+  toggleDeckKeys(selected,deckKeysForGroup(deck,'wan'));
+  toggleDeckKeys(selected,deckKeysForGroup(deck,'odd'));
+  assert.equal(selected.size,19);
+  toggleDeckKeys(selected,deckKeysForGroup(deck,'wan'));
+  assert.deepEqual([...selected].sort(),deckKeysForGroup(deck,'odd').filter(key=>!key.startsWith('wan')).sort());
+});
+test('all 34 embedded tile images are present',() => {
+  const dir=new URL('../assets/paimian/',import.meta.url);
+  const files=readdirSync(dir).filter(name=>name.endsWith('.png')).sort();
+  assert.equal(files.length,34);
+  for(const name of ['Wan1.png','Wan9.png','Bing1.png','Bing9.png','Tiao1.png','Tiao9.png','Dong.png','Nan.png','XI.png','Bei.png','Zhong.png','Fa.png','Bai.png']) assert.equal(files.includes(name),true,name);
+});
+test('negative pailing and baopai names are highlighted',() => {
+  for(const name of ['嗔念','痴念','贪念','执念','杂念','恶念']) assert.equal(warningEffect('pailing',name),true,name);
+  assert.equal(warningEffect('pailing','鼠灵'),false);
+  for(const name of ['迷幻牌','毒宝牌','雾宝牌']) assert.equal(warningEffect('baopai',name),true,name);
+  assert.equal(warningEffect('baopai','红宝牌'),false);
+  assert.equal(warningEffect('baopai','—'),false);
 });
 test('application icon is used in the page header and favicon',() => {
   const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');

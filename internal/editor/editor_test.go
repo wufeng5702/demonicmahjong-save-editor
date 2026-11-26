@@ -15,6 +15,7 @@ func fixture() []byte {
   "Version":9,"Coin":801172.2,"Hp":3,"HpMax":3,"AccHpLost":32,
   "InitSwapPaiTotal":6,"SwapPaiTurnTotal":5,"HuPaiSlotsCount":29,
   "LingYongSlotNum":5,"XiaoChouRepositorySlot":4,
+  "WorkbenchPaiMianBindList":[],
   "AllXcp":[1,2],"AllXcpRepository":[],
   "Xcp":{"1":{"id":1,"permanentAddFan":0.0}, "2": {"id":2,"accPermanentMultiIndependent":5.279997,"future":79228162514264337593543950335.0},"99":{"id":99,"mark":7}},
   "RelicList":[{"DisplayId":77,"RoundCount":4,"activationCount":2,"future":{"exact":79228162514264337593543950335.0}}],
@@ -28,7 +29,9 @@ func fixture() []byte {
 
 func catalogFixture() *Catalog {
 	return &Catalog{Lingyong: map[int]Item{1: {ID: 1, Name: "万福娃娃"}, 2: {ID: 2, Name: "气筒娃娃"}, 14: {ID: 14, Name: "三头犬"}, 98: {ID: 98, Name: "雏凤", Derived: true}},
-		Relics: map[int]Item{77: {ID: 77, Name: "怪异供台", Desc: "你的灵俑槽+1（上限为8）。"}, 3: {ID: 3, Name: "莲台", Desc: "你的灵俑槽+1（上限为8）。"}, 188: {ID: 188, Name: "外婆的祝福", Tags: []string{"供台"}, Desc: "拾取时获得一个供台。"}}}
+		Relics:  map[int]Item{77: {ID: 77, Name: "怪异供台", Desc: "你的灵俑槽+1（上限为8）。"}, 3: {ID: 3, Name: "莲台", Desc: "你的灵俑槽+1（上限为8）。"}, 188: {ID: 188, Name: "外婆的祝福", Tags: []string{"供台"}, Desc: "拾取时获得一个供台。"}},
+		Pailing: map[int]Item{10027: {ID: 10027, Name: "鼠灵", Desc: "牌面数字-2。"}},
+		Baopai:  map[int]Item{1: {ID: 1, Name: "红宝牌", Desc: "倍率+25%。"}}}
 }
 
 func req(raw []byte) Request { return Request{Hash: Hash(raw)} }
@@ -70,6 +73,17 @@ func TestNumberValidation(t *testing.T) {
 		got, err := number(input, false)
 		if err != nil || got != want {
 			t.Errorf("%s got %s (%v), want %s", input, got, err, want)
+		}
+	}
+	for input, want := range map[string]string{"-20": "-20.0", "+10.50": "10.5", "0": "0.0", "1e2": "100.0"} {
+		got, err := deckScore(input)
+		if err != nil || got != want {
+			t.Errorf("deck score %s got %s (%v), want %s", input, got, err, want)
+		}
+	}
+	for _, input := range []string{"NaN", "Infinity", "3.5e38", "1e1000"} {
+		if _, err := deckScore(input); err == nil {
+			t.Errorf("accepted invalid deck score %s", input)
 		}
 	}
 }
@@ -228,6 +242,139 @@ func TestManyDuplicateRelicsHaveNoGameQuantityCap(t *testing.T) {
 	rows, _ := decode[[]jsontext.Value](doc.values["RelicList"])
 	if len(rows) != 4200 {
 		t.Fatal("relic quantity was capped")
+	}
+}
+
+func deckValuesFromRaw(t *testing.T, raw []byte) []DeckValue {
+	t.Helper()
+	doc, err := parse(raw)
+	if err != nil {
+		t.Fatal(err)
+	}
+	state, err := parseDeck(doc.values[deckField])
+	if err != nil {
+		t.Fatal(err)
+	}
+	values := make([]DeckValue, 0, len(state.cards))
+	for _, card := range state.cards {
+		values = append(values, card.DeckValue)
+	}
+	return values
+}
+
+func TestCanonicalDeckOrderAndHonorGapModel(t *testing.T) {
+	if len(canonicalTiles) != 34 {
+		t.Fatalf("got %d canonical tiles", len(canonicalTiles))
+	}
+	for i := 0; i < 9; i++ {
+		if canonicalTiles[i].Key != "wan"+strconv.Itoa(i+1) || canonicalTiles[i+9].Key != "tong"+strconv.Itoa(i+1) || canonicalTiles[i+18].Key != "suo"+strconv.Itoa(i+1) {
+			t.Fatal("numbered tiles are not ordered as 1-9 wan/tong/suo")
+		}
+	}
+	wantHonors := []string{"dong", "nan", "xi", "bei", "zhong", "fa", "bai"}
+	for i, key := range wantHonors {
+		if canonicalTiles[27+i].Key != key {
+			t.Fatalf("honor %d: got %s want %s", i, canonicalTiles[27+i].Key, key)
+		}
+	}
+}
+
+func TestDeckLoadsEmpty33And34Rows(t *testing.T) {
+	empty, err := parseDeck(jsontext.Value(`[]`))
+	if err != nil || empty.rows != 0 || len(empty.cards) != 34 {
+		t.Fatalf("empty deck: state=%+v err=%v", empty, err)
+	}
+	values := make(map[string]DeckValue, 34)
+	for _, card := range empty.cards {
+		values[card.Key] = card.DeckValue
+	}
+	full, _, err := buildDeck(empty, values)
+	if err != nil {
+		t.Fatal(err)
+	}
+	rows, err := decode[[]jsontext.Value](jsontext.Value(full))
+	if err != nil || len(rows) != 34 {
+		t.Fatalf("full deck: rows=%d err=%v", len(rows), err)
+	}
+	for count, raw := range map[int]string{33: marshal(rows[:33]), 34: full} {
+		state, err := parseDeck(jsontext.Value(raw))
+		if err != nil || state.rows != count || len(state.cards) != 34 {
+			t.Fatalf("%d-row deck: state=%+v err=%v", count, state, err)
+		}
+	}
+}
+
+func TestDeckEditNormalizesTo34AndPreservesOtherRootValues(t *testing.T) {
+	raw := bytes.Replace(fixture(), []byte(`"WorkbenchPaiMianBindList":[]`), []byte(`"WorkbenchPaiMianBindList":[{"PaiMian":{"huaSe":1,"number":1,"feng":0,"jian":0},"DeltaBaseScore":0.0,"BaoId":0,"LingId":0,"future":{"huge":79228162514264337593543950335.0}}]`), 1)
+	values := deckValuesFromRaw(t, raw)
+	values[0].Score = "-20"
+	values[0].BaoID = 1
+	values[0].LingID = 10027
+	request := req(raw)
+	request.Deck = &values
+	updated, preview, err := Build(raw, request, catalogFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := parse(raw)
+	after, _ := parse(updated)
+	state, err := parseDeck(after.values[deckField])
+	if err != nil {
+		t.Fatal(err)
+	}
+	if state.rows != 34 || len(state.byKey) != 34 {
+		t.Fatalf("deck was not normalized: rows=%d unique=%d", state.rows, len(state.byKey))
+	}
+	wan1 := state.byKey["wan1"]
+	if wan1.value.Score != "-20.0" || wan1.value.BaoID != 1 || wan1.value.LingID != 10027 {
+		t.Fatalf("wan1 values not updated: %+v", wan1.value)
+	}
+	if _, exists := wan1.doc.values["future"]; !exists {
+		t.Fatal("existing deck row unknown field was discarded")
+	}
+	if !bytes.Equal(before.values["AccountGameData"], after.values["AccountGameData"]) {
+		t.Fatal("deck edit changed an unrelated root field")
+	}
+	if len(preview.Changes) != 1 || preview.Changes[0].Field != deckField || !strings.Contains(preview.Changes[0].After, "1万") {
+		t.Fatalf("deck preview missing: %+v", preview.Changes)
+	}
+}
+
+func TestDeckUntouchedPreservesSparseBytes(t *testing.T) {
+	raw := fixture()
+	request := req(raw)
+	request.Fields = map[string]string{"Coin": "123.5"}
+	updated, _, err := Build(raw, request, catalogFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	before, _ := parse(raw)
+	after, _ := parse(updated)
+	if !bytes.Equal(before.values[deckField], after.values[deckField]) {
+		t.Fatal("unmodified deck was normalized")
+	}
+}
+
+func TestDeckRejectsMissingDuplicateAndUnknownEffects(t *testing.T) {
+	raw := fixture()
+	values := deckValuesFromRaw(t, raw)
+	missing := append([]DeckValue(nil), values[:33]...)
+	request := req(raw)
+	request.Deck = &missing
+	if _, _, err := Build(raw, request, catalogFixture()); err == nil {
+		t.Fatal("accepted a deck missing one tile")
+	}
+	duplicate := append([]DeckValue(nil), values...)
+	duplicate[33].Key = duplicate[0].Key
+	request.Deck = &duplicate
+	if _, _, err := Build(raw, request, catalogFixture()); err == nil {
+		t.Fatal("accepted duplicate tile")
+	}
+	unknown := append([]DeckValue(nil), values...)
+	unknown[0].BaoID = 999999
+	request.Deck = &unknown
+	if _, _, err := Build(raw, request, catalogFixture()); err == nil {
+		t.Fatal("accepted unknown new baopai")
 	}
 }
 

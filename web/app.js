@@ -1,4 +1,4 @@
-import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel } from './model.js';
+import { slotState, requestFor, matches, isDirty, selectionFits, saveLabel, deckKeysForGroup, toggleDeckKeys, warningEffect } from './model.js';
 
 const $ = id => document.getElementById(id);
 const esc = value => String(value ?? '').replace(/[&<>"']/g, c => ({'&':'&amp;','<':'&lt;','>':'&gt;','"':'&quot;',"'":'&#39;'}[c]));
@@ -7,7 +7,9 @@ let runtime, token, boot, save, draft, tab = 'lingyong', pending;
 let search = '', rarity = '', tag = '', busy = false;
 let savePaths = [];
 const selectedEquipped = new Set(), selectedWarehouse = new Set(), selectedRelics = new Set(), selectedCandidates = new Set();
+const selectedDeck = new Set();
 const catalogs = {};
+let deckEdit = null;
 
 async function call(method, ...args) {
   if (!browserPreview) return runtime.ByName(`main.Service.${method}`, ...args);
@@ -52,9 +54,10 @@ function updateSaveOptions(path) {
 
 function adopt(snapshot) {
   save = snapshot;
-  draft = { fields: {...save.fields}, equipped: [...save.equipped], warehouse: [...save.warehouse], relics: save.relics.map(r => ({...r})) };
+  draft = { fields: {...save.fields}, equipped: [...save.equipped], warehouse: [...save.warehouse], relics: save.relics.map(r => ({...r})), deck: save.deck.map(row => ({...row})) };
   updateSaveOptions(save.path);
-  selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear();
+  selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear(); selectedDeck.clear();
+  deckEdit = null;
   pending = undefined;
   render();
 }
@@ -69,11 +72,14 @@ function portrait(item, kind, size = '') {
 
 function fixImages() {
   for (const img of document.querySelectorAll('img')) {
-    const failed = () => { img.hidden = true; img.nextElementSibling.hidden = false; };
+    const fallback = img.nextElementSibling;
+    if (!fallback || !fallback.classList.contains('fallback')) continue;
+    const failed = () => { img.hidden = true; fallback.hidden = false; };
     img.onerror = failed;
     if (img.complete && !img.naturalWidth) failed();
   }
 }
+
 
 function updateState() {
   if (!save) return;
@@ -91,6 +97,7 @@ function render() {
   document.querySelectorAll('[data-tab]').forEach(button => button.classList.toggle('active', button.dataset.tab === tab));
   $('content').className = `${tab}-mode`;
   if (tab === 'numbers') { renderNumbers(); return; }
+  if (tab === 'deck') { renderDeck(); return; }
   const kind = tab === 'relics' ? 'relics' : 'lingyong';
   $('content').innerHTML = `
     <div class="page-title"><div class="title-line"><h2>${kind === 'lingyong' ? '灵俑编辑' : '持有遗物'}</h2>${kind === 'lingyong' ? '<div id="slot-info"></div>' : ''}<span class="page-inline-tip">${kind === 'lingyong' ? '多选上场灵俑删除或移动；右侧多选添加，不改变发现记录和商店解锁池。' : '左侧多选删除，右侧多选添加；现有遗物计数保留，供台槽位自动联动。'}</span></div></div>
@@ -267,6 +274,107 @@ function renderDetail() {
   };
 }
 
+function deckChangedCount() {
+  return draft.deck.reduce((count,row,index) => {
+    const old = save.deck[index];
+    return count + (row.score !== old.score || row.baoId !== old.baoId || row.lingId !== old.lingId ? 1 : 0);
+  },0);
+}
+
+function effectName(kind,id) {
+  if (!id) return '—';
+  return catalogs[kind][id]?.name || `未知 ID ${id}`;
+}
+
+function resetDeckEdit() {
+  const keys=[...selectedDeck];
+  if (keys.length===1) {
+    const row=draft.deck.find(item=>item.key===keys[0]);
+    deckEdit={scoreMode:'set',score:row.score,lingMode:row.lingId?'set':'clear',lingId:row.lingId,baoMode:row.baoId?'set':'clear',baoId:row.baoId};
+  } else {
+    deckEdit={scoreMode:'keep',score:'0.0',lingMode:'keep',lingId:0,baoMode:'keep',baoId:0};
+  }
+}
+
+function deckCard(row) {
+  const selected=selectedDeck.has(row.key);
+  const modified=Number(row.score)!==0 || row.lingId!==0 || row.baoId!==0;
+  const lingName=effectName('pailing',row.lingId), baoName=effectName('baopai',row.baoId);
+  const lingClass=warningEffect('pailing',lingName)?' warning':'', baoClass=warningEffect('baopai',baoName)?' warning':'';
+  return `<label class="deck-card ${selected?'selected':''} ${modified?'modified':''}" title="${esc(row.name)}：${esc(lingName)} / ${esc(baoName)}">
+    <input type="checkbox" class="deck-check" data-deck-key="${esc(row.key)}" aria-label="选择牌面 ${esc(row.name)}" ${selected?'checked':''}>
+    <img class="deck-face" src="/paimian/${esc(row.asset)}" alt="${esc(row.name)}">
+    <span class="deck-summary${lingClass}">${esc(lingName)}</span>
+    <span class="deck-summary${baoClass}">${esc(baoName)}</span>
+  </label>`;
+}
+
+function deckEffectCard(kind,id) {
+  if (!id) return '<div class="deck-effect-empty">未选择</div>';
+  const item=catalogs[kind][id] || {id,name:`未知 ID ${id}`,desc:'当前图鉴没有对应数据，将保留存档中的 ID。'};
+  return `<div class="deck-effect-card">${portrait(item,kind,'small')}<div><strong>${esc(item.name)} · ID ${id}</strong><p>${esc(item.desc)}</p></div></div>`;
+}
+
+function deckModeOptions(value,setLabel) {
+  return `<option value="keep" ${value==='keep'?'selected':''}>保持不变</option><option value="clear" ${value==='clear'?'selected':''}>清空</option><option value="set" ${value==='set'?'selected':''}>${setLabel}</option>`;
+}
+
+function renderDeck() {
+  if (!deckEdit) resetDeckEdit();
+  const selected=[...selectedDeck];
+  const byGroup=group=>draft.deck.filter(row=>row.group===group);
+  const honors=byGroup('字');
+  const honorCells=[...honors.slice(0,4),null,...honors.slice(4),null];
+  const deckRow=rows=>rows.map(row=>row?deckCard(row):'<span class="deck-gap" aria-hidden="true"></span>').join('');
+  const quickGroups=Object.fromEntries(['wan','tong','suo','zi','odd','even'].map(group=>[group,deckKeysForGroup(draft.deck,group)]));
+  const quickButton=(key,label)=>`<button class="small deck-quick ${quickGroups[key].every(id=>selectedDeck.has(id))?'active':''}" data-deck-quick="${key}">${label}</button>`;
+  const unknownLing=deckEdit.lingId&&!catalogs.pailing[deckEdit.lingId]?`<option value="${deckEdit.lingId}" selected>未知牌灵 · ID ${deckEdit.lingId}</option>`:'';
+  const unknownBao=deckEdit.baoId&&!catalogs.baopai[deckEdit.baoId]?`<option value="${deckEdit.baoId}" selected>未知宝牌 · ID ${deckEdit.baoId}</option>`:'';
+  const pailingOptions=unknownLing+boot.catalog.pailing.map(item=>`<option value="${item.id}" ${deckEdit.lingId===item.id?'selected':''}>${esc(item.name)} · ID ${item.id}</option>`).join('');
+  const baopaiOptions=unknownBao+boot.catalog.baopai.map(item=>`<option value="${item.id}" ${deckEdit.baoId===item.id?'selected':''}>${esc(item.name)} · ID ${item.id}</option>`).join('');
+  $('content').innerHTML=`<div class="page-title"><div class="title-line"><h2>牌库编辑</h2><span class="badge">34 种牌面</span><span class="badge">存档已有 ${save.deckRows} 条</span><span class="badge ${deckChangedCount()?'amber':''}">待修改 ${deckChangedCount()} 种</span><span class="page-inline-tip">保存牌库修改时，固定写入 34 条牌面记录。</span></div></div>
+  <div class="deck-workspace">
+    <section class="panel deck-pool"><div class="panel-heading"><h3>选择牌面</h3><span class="muted">已选 ${selected.length} / 34</span><div class="deck-quick-actions">${quickButton('wan','万')}${quickButton('tong','筒')}${quickButton('suo','索')}${quickButton('zi','字')}${quickButton('odd','奇')}${quickButton('even','偶')}<button id="deck-select-all" class="small">${selected.length===34?'取消全选':'全选'}</button></div></div>
+      <div class="deck-grid">${deckRow(byGroup('万'))}${deckRow(byGroup('筒'))}${deckRow(byGroup('索'))}${deckRow(honorCells)}</div>
+    </section>
+    <section class="panel deck-editor"><div class="panel-heading"><h3>编辑选中牌面</h3><span class="badge">${selected.length} 种</span></div>
+      ${selected.length?`<div class="deck-selected-names">${esc(selected.map(key=>draft.deck.find(row=>row.key===key)?.name).join('、'))}</div>`:'<div class="deck-editor-empty">请在左侧选择牌面</div>'}
+      <div class="deck-field"><div class="deck-field-title"><strong>牌面分加成</strong><select id="deck-score-mode">${deckModeOptions(deckEdit.scoreMode,'指定值')}</select></div>
+        <div class="deck-score-controls"><button id="deck-score-minus" ${deckEdit.scoreMode!=='set'?'disabled':''}>-10</button><input id="deck-score" value="${esc(deckEdit.score)}" ${deckEdit.scoreMode!=='set'?'disabled':''} aria-label="牌面分加成"><button id="deck-score-plus" ${deckEdit.scoreMode!=='set'?'disabled':''}>+10</button></div></div>
+      <div class="deck-field"><div class="deck-field-title"><strong>牌灵</strong><select id="deck-ling-mode">${deckModeOptions(deckEdit.lingMode,'指定牌灵')}</select></div>
+        <select id="deck-ling" ${deckEdit.lingMode!=='set'?'disabled':''}><option value="0">选择牌灵</option>${pailingOptions}</select>${deckEdit.lingMode==='set'?deckEffectCard('pailing',deckEdit.lingId):''}</div>
+      <div class="deck-field"><div class="deck-field-title"><strong>宝牌</strong><select id="deck-bao-mode">${deckModeOptions(deckEdit.baoMode,'指定宝牌')}</select></div>
+        <select id="deck-bao" ${deckEdit.baoMode!=='set'?'disabled':''}><option value="0">选择宝牌</option>${baopaiOptions}</select>${deckEdit.baoMode==='set'?deckEffectCard('baopai',deckEdit.baoId):''}</div>
+      <div class="deck-actions"><button id="deck-apply" class="primary" ${selected.length?'':'disabled'}>应用到已选 ${selected.length} 种</button><button id="deck-restore">恢复读取值</button></div>
+      <p class="hint">批量编辑时，选择“保持不变”的字段不会覆盖各牌现有值。</p>
+    </section>
+  </div>`;
+  $('content').onchange=event=>{
+    const check=event.target.closest('[data-deck-key]');
+    if(check){if(check.checked)selectedDeck.add(check.dataset.deckKey);else selectedDeck.delete(check.dataset.deckKey);resetDeckEdit();renderDeck();return;}
+    if(event.target.id==='deck-score-mode'){deckEdit.scoreMode=event.target.value;renderDeck();}
+    if(event.target.id==='deck-ling-mode'){deckEdit.lingMode=event.target.value;renderDeck();}
+    if(event.target.id==='deck-bao-mode'){deckEdit.baoMode=event.target.value;renderDeck();}
+    if(event.target.id==='deck-ling'){deckEdit.lingId=Number(event.target.value);renderDeck();}
+    if(event.target.id==='deck-bao'){deckEdit.baoId=Number(event.target.value);renderDeck();}
+  };
+  $('deck-select-all').onclick=()=>{if(selectedDeck.size===34)selectedDeck.clear();else draft.deck.forEach(row=>selectedDeck.add(row.key));resetDeckEdit();renderDeck();};
+  document.querySelectorAll('[data-deck-quick]').forEach(button=>{button.onclick=()=>{toggleDeckKeys(selectedDeck,quickGroups[button.dataset.deckQuick]);resetDeckEdit();renderDeck();};});
+  $('deck-score').oninput=event=>{deckEdit.score=event.target.value;};
+  $('deck-score-minus').onclick=()=>{deckEdit.score=String((Number(deckEdit.score)||0)-10);renderDeck();};
+  $('deck-score-plus').onclick=()=>{deckEdit.score=String((Number(deckEdit.score)||0)+10);renderDeck();};
+  $('deck-restore').onclick=()=>{draft.deck=save.deck.map(row=>({...row}));selectedDeck.clear();deckEdit=null;render();};
+  $('deck-apply').onclick=()=>{
+    if(!selectedDeck.size)return;
+    if(deckEdit.scoreMode==='set'&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(deckEdit.score))return toast('请输入有效的牌面分');
+    if(deckEdit.lingMode==='set'&&!deckEdit.lingId)return toast('请选择牌灵');
+    if(deckEdit.baoMode==='set'&&!deckEdit.baoId)return toast('请选择宝牌');
+    for(const row of draft.deck){if(!selectedDeck.has(row.key))continue;if(deckEdit.scoreMode==='clear')row.score='0.0';if(deckEdit.scoreMode==='set')row.score=deckEdit.score;if(deckEdit.lingMode==='clear')row.lingId=0;if(deckEdit.lingMode==='set')row.lingId=deckEdit.lingId;if(deckEdit.baoMode==='clear')row.baoId=0;if(deckEdit.baoMode==='set')row.baoId=deckEdit.baoId;}
+    updateState();resetDeckEdit();renderDeck();
+  };
+  fixImages();
+}
+
 function renderNumbers() {
   const groups = [['金币与血量',['Coin','Hp','HpMax','AccHpLost']],['麻将对局',['InitSwapPaiTotal','SwapPaiTurnTotal','HuPaiSlotsCount']],['灵俑容量',['LingYongSlotNum','XiaoChouRepositorySlot']]];
   $('content').innerHTML = `<div class="page-title"><div class="title-line"><h2>数值编辑</h2><span class="page-inline-tip">显示的是存档原始值。游戏可能因技能、遗物或 GameConfig 在运行时另行计算最终数值。</span></div></div>
@@ -328,7 +436,7 @@ async function loadPath(path = $('path').value) {
   }
 }
 
-document.querySelectorAll('[data-tab]').forEach(button => { button.onclick = () => { tab = button.dataset.tab; search = ''; rarity = ''; tag = ''; selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear(); render(); }; });
+document.querySelectorAll('[data-tab]').forEach(button => { button.onclick = () => { tab = button.dataset.tab; search = ''; rarity = ''; tag = ''; selectedEquipped.clear(); selectedWarehouse.clear(); selectedRelics.clear(); selectedCandidates.clear(); selectedDeck.clear(); deckEdit = null; render(); }; });
 $('load').onclick = () => action(loadPath);
 $('path').onchange = () => action(loadPath);
 $('choose').onclick = () => action(async () => {
@@ -338,8 +446,8 @@ $('preview').onclick = $('save').onclick = () => action(showPreview);
 $('backups').onclick = () => action(showBackups);
 $('refresh-data').onclick = () => action(async () => {
   boot = await call('RefreshCatalog');
-  for (const kind of ['lingyong','relics']) catalogs[kind] = Object.fromEntries(boot.catalog[kind].map(item => [item.id,item]));
-  $('source').textContent = `${boot.source} · ${boot.catalog.lingyong.length} 灵俑 / ${boot.catalog.relics.length} 遗物`;
+  for (const kind of ['lingyong','relics','pailing','baopai']) catalogs[kind] = Object.fromEntries(boot.catalog[kind].map(item => [item.id,item]));
+  $('source').textContent = `${boot.source} · ${boot.catalog.lingyong.length} 灵俑 / ${boot.catalog.relics.length} 遗物 / ${boot.catalog.pailing.length} 牌灵 / ${boot.catalog.baopai.length} 宝牌`;
   if (save) render();
   toast(`图鉴状态：${boot.source}。界面中的存档修改已保留。`,false);
 });
@@ -348,8 +456,8 @@ window.addEventListener('beforeunload',event => { if (save && isDirty(save,draft
 await action(async () => {
   if (!browserPreview) runtime = (await import('/wails/runtime.js')).Call;
   boot = await call('Bootstrap');
-  for (const kind of ['lingyong','relics']) catalogs[kind] = Object.fromEntries(boot.catalog[kind].map(item => [item.id,item]));
-  $('source').textContent = `${boot.source} · ${boot.catalog.lingyong.length} 灵俑 / ${boot.catalog.relics.length} 遗物`;
+  for (const kind of ['lingyong','relics','pailing','baopai']) catalogs[kind] = Object.fromEntries(boot.catalog[kind].map(item => [item.id,item]));
+  $('source').textContent = `${boot.source} · ${boot.catalog.lingyong.length} 灵俑 / ${boot.catalog.relics.length} 遗物 / ${boot.catalog.pailing.length} 牌灵 / ${boot.catalog.baopai.length} 宝牌`;
   $('source').title = boot.dataPath;
   savePaths = [...boot.saves];
   updateSaveOptions();

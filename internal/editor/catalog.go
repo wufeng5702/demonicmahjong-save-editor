@@ -23,6 +23,8 @@ type Item struct {
 type Catalog struct {
 	Lingyong map[int]Item
 	Relics   map[int]Item
+	Pailing  map[int]Item
+	Baopai   map[int]Item
 	Version  string
 }
 
@@ -46,17 +48,22 @@ func ParseCatalog(raw []byte) (*Catalog, error) {
 		Data struct {
 			Lingyong []entry `json:"lingyong"`
 			Relics   []entry `json:"relics"`
+			Pailing  []entry `json:"pailing"`
+			Baopai   []entry `json:"baopai"`
 		} `json:"data"`
 	}
 	if err := json.Unmarshal(raw, &payload); err != nil {
 		return nil, err
 	}
-	cat := &Catalog{Lingyong: map[int]Item{}, Relics: map[int]Item{}, Version: Hash(raw)}
-	for category, entries := range map[string][]entry{"lingyong": payload.Data.Lingyong, "relics": payload.Data.Relics} {
-		target := cat.Relics
-		if category == "lingyong" {
-			target = cat.Lingyong
-		}
+	cat := &Catalog{Lingyong: map[int]Item{}, Relics: map[int]Item{}, Pailing: map[int]Item{}, Baopai: map[int]Item{}, Version: Hash(raw)}
+	for category, entries := range map[string][]entry{
+		"lingyong": payload.Data.Lingyong, "relics": payload.Data.Relics,
+		"pailing": payload.Data.Pailing, "baopai": payload.Data.Baopai,
+	} {
+		target := map[string]map[int]Item{
+			"lingyong": cat.Lingyong, "relics": cat.Relics,
+			"pailing": cat.Pailing, "baopai": cat.Baopai,
+		}[category]
 		for _, e := range entries {
 			if e.Source == "enum" || e.Name == "" || e.ID <= 0 || (category == "lingyong" && e.ID >= 10000) {
 				continue
@@ -70,8 +77,8 @@ func ParseCatalog(raw []byte) (*Catalog, error) {
 			target[e.ID] = e.Item
 		}
 	}
-	if len(cat.Lingyong) == 0 || len(cat.Relics) == 0 {
-		return nil, fmt.Errorf("data.json 的灵俑或遗物分类为空")
+	if len(cat.Lingyong) == 0 || len(cat.Relics) == 0 || len(cat.Pailing) == 0 || len(cat.Baopai) == 0 {
+		return nil, fmt.Errorf("data.json 的灵俑、遗物、牌灵或宝牌分类为空")
 	}
 	return cat, nil
 }

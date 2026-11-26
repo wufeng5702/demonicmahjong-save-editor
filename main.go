@@ -19,7 +19,7 @@ import (
 	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 )
 
-//go:embed all:web assets/app-icon.png
+//go:embed all:web assets/app-icon.png assets/paimian/*.png
 var assets embed.FS
 
 var version = "dev"
@@ -65,10 +65,22 @@ func main() {
 		}
 	}
 	static := http.FileServer(http.FS(web))
-	iconPattern := regexp.MustCompile(`^/icons/(lingyong|relics)/\d+\.png$`)
+	iconPattern := regexp.MustCompile(`^/icons/(lingyong|relics|pailing|baopai)/\d+\.png$`)
+	paimianPattern := regexp.MustCompile(`^/paimian/[A-Za-z0-9]+\.png$`)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
 		if r.URL.Path == "/app-icon.png" {
 			raw, err := assets.ReadFile("assets/app-icon.png")
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			w.Write(raw)
+			return
+		}
+		if paimianPattern.MatchString(r.URL.Path) {
+			raw, err := assets.ReadFile("assets/paimian/" + strings.TrimPrefix(r.URL.Path, "/paimian/"))
 			if err != nil {
 				http.NotFound(w, r)
 				return

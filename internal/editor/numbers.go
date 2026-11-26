@@ -2,6 +2,7 @@ package editor
 
 import (
 	"fmt"
+	"math"
 	"math/big"
 	"regexp"
 	"strconv"
@@ -22,6 +23,7 @@ var Fields = []Field{
 }
 
 var numberPattern = regexp.MustCompile(`^\+?(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$`)
+var signedNumberPattern = regexp.MustCompile(`^([+-]?)(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$`)
 
 // Expand decimal notation exactly; neither JS Number nor float64 touches save values.
 func number(input string, integer bool) (string, error) {
@@ -77,4 +79,49 @@ func equalNumber(a, b string) bool {
 	}
 	y, ok := new(big.Rat).SetString(b)
 	return ok && x.Cmp(y) == 0
+}
+
+// deckScore returns a plain signed float token suitable for the game's float field.
+func deckScore(input string) (string, error) {
+	if len(input) == 0 || len(input) > 80 {
+		return "", fmt.Errorf("请输入有效牌面分")
+	}
+	match := signedNumberPattern.FindStringSubmatch(input)
+	if match == nil {
+		return "", fmt.Errorf("牌面分必须是有限数字")
+	}
+	exponent := 0
+	var err error
+	if match[4] != "" {
+		exponent, err = strconv.Atoi(match[4])
+		if err != nil || exponent < -80 || exponent > 80 {
+			return "", fmt.Errorf("牌面分指数超出范围")
+		}
+	}
+	digits := strings.TrimLeft(match[2]+match[3], "0")
+	if digits == "" {
+		return "0.0", nil
+	}
+	scale := len(match[3]) - exponent
+	var normalized string
+	if scale <= 0 {
+		normalized = digits + strings.Repeat("0", -scale)
+	} else {
+		if len(digits) <= scale {
+			digits = strings.Repeat("0", scale-len(digits)+1) + digits
+		}
+		normalized = digits[:len(digits)-scale] + "." + digits[len(digits)-scale:]
+		normalized = strings.TrimRight(strings.TrimRight(normalized, "0"), ".")
+	}
+	if match[1] == "-" {
+		normalized = "-" + normalized
+	}
+	value, err := strconv.ParseFloat(normalized, 32)
+	if err != nil || math.IsInf(value, 0) || math.IsNaN(value) {
+		return "", fmt.Errorf("牌面分超出游戏 float 数值范围")
+	}
+	if !strings.Contains(normalized, ".") {
+		normalized += ".0"
+	}
+	return normalized, nil
 }
