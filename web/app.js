@@ -287,13 +287,12 @@ function effectName(kind,id) {
 }
 
 function resetDeckEdit() {
-  const keys=[...selectedDeck];
-  if (keys.length===1) {
-    const row=draft.deck.find(item=>item.key===keys[0]);
-    deckEdit={scoreMode:'set',score:row.score,lingMode:row.lingId?'set':'clear',lingId:row.lingId,baoMode:row.baoId?'set':'clear',baoId:row.baoId};
-  } else {
-    deckEdit={scoreMode:'keep',score:'0.0',lingMode:'keep',lingId:0,baoMode:'keep',baoId:0};
-  }
+  const row = selectedDeck.size === 1 ? draft.deck.find(item => selectedDeck.has(item.key)) : undefined;
+  deckEdit = {
+    score: null,
+    lingId: row?.lingId ?? null,
+    baoId: row?.baoId ?? null,
+  };
 }
 
 function deckCard(row) {
@@ -310,66 +309,117 @@ function deckCard(row) {
 }
 
 function deckEffectCard(kind,id) {
-  if (!id) return '<div class="deck-effect-empty">未选择</div>';
+  if (!id) return '';
   const item=catalogs[kind][id] || {id,name:`未知 ID ${id}`,desc:'当前图鉴没有对应数据，将保留存档中的 ID。'};
-  return `<div class="deck-effect-card">${portrait(item,kind,'small')}<div><strong>${esc(item.name)} · ID ${id}</strong><p>${esc(item.desc)}</p></div></div>`;
+  return `<div class="deck-effect-card">${portrait(item,kind)}<div><strong>${esc(item.name)} · ID ${id}</strong><p>${esc(item.desc)}</p></div></div>`;
 }
 
-function deckModeOptions(value,setLabel) {
-  return `<option value="keep" ${value==='keep'?'selected':''}>保持不变</option><option value="clear" ${value==='clear'?'selected':''}>清空</option><option value="set" ${value==='set'?'selected':''}>${setLabel}</option>`;
+function deckEffectField(kind, id, label, controlId, disabled) {
+  const item = catalogs[kind][id];
+  const unknown = id && !item ? {id, name: `未知${label}`} : null;
+  const items = unknown ? [unknown, ...boot.catalog[kind]] : boot.catalog[kind];
+  const selected = id === null ? '保持不变' : id === 0 ? '清空' : `${(item || unknown).name} · ID ${id}`;
+  const choice = value => `type="button" data-effect-value="${value ?? ''}" aria-pressed="${id === value}" ${id === value ? 'autofocus' : ''}`;
+  return `<div class="deck-field">
+    <div class="deck-field-title" id="${controlId}-label"><strong>${label}</strong></div>
+    <button type="button" class="deck-effect-trigger" id="${controlId}" popovertarget="${controlId}-picker" aria-labelledby="${controlId}-label ${controlId}-value" ${disabled ? 'disabled' : ''}>
+      <span id="${controlId}-value">${esc(selected)}</span><span aria-hidden="true">⌄</span>
+    </button>
+    <div id="${controlId}-picker" class="deck-effect-picker" popover role="group" aria-labelledby="${controlId}-label">
+      <div class="deck-effect-actions"><button ${choice(0)}>清空</button><button ${choice(null)}>保持不变</button></div>
+      <div class="deck-effect-choices">${items.map(option => `
+        <button ${choice(option.id)} aria-label="${esc(option.name)} · ID ${option.id}">
+          ${option === unknown ? '' : portrait(option,kind)}
+          <span>${esc(option.name)}</span><small>ID ${option.id}</small>
+        </button>`).join('')}</div>
+    </div>
+    ${deckEffectCard(kind,id)}
+  </div>`;
+}
+
+function closeDeckEffectPicker() {
+  document.querySelector('.deck-effect-picker:popover-open')?.hidePopover();
 }
 
 function renderDeck() {
   if (!deckEdit) resetDeckEdit();
-  const selected=[...selectedDeck];
+  const selected = draft.deck.filter(row => selectedDeck.has(row.key));
+  const initialScore = selected[0]?.score ?? '';
+  const sharedScore = selected.every(row => row.score === initialScore);
+  const scoreValue = deckEdit.score ?? (sharedScore ? initialScore : '');
+  const scorePlaceholder = deckEdit.score === null && !sharedScore ? '原值不同' : '0';
+  const disabled = selected.length ? '' : 'disabled';
   const byGroup=group=>draft.deck.filter(row=>row.group===group);
   const honors=byGroup('字');
   const honorCells=[...honors.slice(0,4),null,...honors.slice(4),null];
   const deckRow=rows=>rows.map(row=>row?deckCard(row):'<span class="deck-gap" aria-hidden="true"></span>').join('');
   const quickGroups=Object.fromEntries(['wan','tong','suo','zi','odd','even'].map(group=>[group,deckKeysForGroup(draft.deck,group)]));
   const quickButton=(key,label)=>`<button class="small deck-quick ${quickGroups[key].every(id=>selectedDeck.has(id))?'active':''}" data-deck-quick="${key}">${label}</button>`;
-  const unknownLing=deckEdit.lingId&&!catalogs.pailing[deckEdit.lingId]?`<option value="${deckEdit.lingId}" selected>未知牌灵 · ID ${deckEdit.lingId}</option>`:'';
-  const unknownBao=deckEdit.baoId&&!catalogs.baopai[deckEdit.baoId]?`<option value="${deckEdit.baoId}" selected>未知宝牌 · ID ${deckEdit.baoId}</option>`:'';
-  const pailingOptions=unknownLing+boot.catalog.pailing.map(item=>`<option value="${item.id}" ${deckEdit.lingId===item.id?'selected':''}>${esc(item.name)} · ID ${item.id}</option>`).join('');
-  const baopaiOptions=unknownBao+boot.catalog.baopai.map(item=>`<option value="${item.id}" ${deckEdit.baoId===item.id?'selected':''}>${esc(item.name)} · ID ${item.id}</option>`).join('');
   $('content').innerHTML=`<div class="page-title"><div class="title-line"><h2>牌库编辑</h2><span class="badge">34 种牌面</span><span class="badge">存档已有 ${save.deckRows} 条</span><span class="badge ${deckChangedCount()?'amber':''}">待修改 ${deckChangedCount()} 种</span><span class="page-inline-tip">保存牌库修改时，固定写入 34 条牌面记录。</span></div></div>
   <div class="deck-workspace">
     <section class="panel deck-pool"><div class="panel-heading"><h3>选择牌面</h3><span class="muted">已选 ${selected.length} / 34</span><div class="deck-quick-actions">${quickButton('wan','万')}${quickButton('tong','筒')}${quickButton('suo','索')}${quickButton('zi','字')}${quickButton('odd','奇')}${quickButton('even','偶')}<button id="deck-select-all" class="small">${selected.length===34?'取消全选':'全选'}</button></div></div>
       <div class="deck-grid">${deckRow(byGroup('万'))}${deckRow(byGroup('筒'))}${deckRow(byGroup('索'))}${deckRow(honorCells)}</div>
     </section>
     <section class="panel deck-editor"><div class="panel-heading"><h3>编辑选中牌面</h3><span class="badge">${selected.length} 种</span></div>
-      ${selected.length?`<div class="deck-selected-names">${esc(selected.map(key=>draft.deck.find(row=>row.key===key)?.name).join('、'))}</div>`:'<div class="deck-editor-empty">请在左侧选择牌面</div>'}
-      <div class="deck-field"><div class="deck-field-title"><strong>牌面分加成</strong><select id="deck-score-mode">${deckModeOptions(deckEdit.scoreMode,'指定值')}</select></div>
-        <div class="deck-score-controls"><button id="deck-score-minus" ${deckEdit.scoreMode!=='set'?'disabled':''}>-10</button><input id="deck-score" value="${esc(deckEdit.score)}" ${deckEdit.scoreMode!=='set'?'disabled':''} aria-label="牌面分加成"><button id="deck-score-plus" ${deckEdit.scoreMode!=='set'?'disabled':''}>+10</button></div></div>
-      <div class="deck-field"><div class="deck-field-title"><strong>牌灵</strong><select id="deck-ling-mode">${deckModeOptions(deckEdit.lingMode,'指定牌灵')}</select></div>
-        <select id="deck-ling" ${deckEdit.lingMode!=='set'?'disabled':''}><option value="0">选择牌灵</option>${pailingOptions}</select>${deckEdit.lingMode==='set'?deckEffectCard('pailing',deckEdit.lingId):''}</div>
-      <div class="deck-field"><div class="deck-field-title"><strong>宝牌</strong><select id="deck-bao-mode">${deckModeOptions(deckEdit.baoMode,'指定宝牌')}</select></div>
-        <select id="deck-bao" ${deckEdit.baoMode!=='set'?'disabled':''}><option value="0">选择宝牌</option>${baopaiOptions}</select>${deckEdit.baoMode==='set'?deckEffectCard('baopai',deckEdit.baoId):''}</div>
+      ${selected.length?`<div class="deck-selected-names">${esc(selected.map(row=>row.name).join('、'))}</div>`:'<div class="deck-editor-empty">请在左侧选择牌面</div>'}
+      <div class="deck-field"><label class="deck-field-title" for="deck-score"><strong>牌面分加成</strong></label>
+        <div class="deck-score-controls"><button id="deck-score-minus" ${disabled}>-10</button><input id="deck-score" type="text" inputmode="decimal" value="${esc(scoreValue)}" placeholder="${scorePlaceholder}" ${disabled}><button id="deck-score-plus" ${disabled}>+10</button></div></div>
+      ${deckEffectField('pailing', deckEdit.lingId, '牌灵', 'deck-ling', !selected.length)}
+      ${deckEffectField('baopai', deckEdit.baoId, '宝牌', 'deck-bao', !selected.length)}
       <div class="deck-actions"><button id="deck-apply" class="primary" ${selected.length?'':'disabled'}>应用到已选 ${selected.length} 种</button><button id="deck-restore">恢复读取值</button></div>
-      <p class="hint">批量编辑时，选择“保持不变”的字段不会覆盖各牌现有值。</p>
+      <p class="hint">牌面分未编辑时保留原值；手动删空后应用为 0。牌灵、宝牌可选「保持不变」。</p>
     </section>
   </div>`;
   $('content').onchange=event=>{
     const check=event.target.closest('[data-deck-key]');
     if(check){if(check.checked)selectedDeck.add(check.dataset.deckKey);else selectedDeck.delete(check.dataset.deckKey);resetDeckEdit();renderDeck();return;}
-    if(event.target.id==='deck-score-mode'){deckEdit.scoreMode=event.target.value;renderDeck();}
-    if(event.target.id==='deck-ling-mode'){deckEdit.lingMode=event.target.value;renderDeck();}
-    if(event.target.id==='deck-bao-mode'){deckEdit.baoMode=event.target.value;renderDeck();}
-    if(event.target.id==='deck-ling'){deckEdit.lingId=Number(event.target.value);renderDeck();}
-    if(event.target.id==='deck-bao'){deckEdit.baoId=Number(event.target.value);renderDeck();}
   };
+  const editor = document.querySelector('.deck-editor');
+  editor.onscroll = closeDeckEffectPicker;
+  for (const [controlId, field] of [['deck-ling', 'lingId'], ['deck-bao', 'baoId']]) {
+    const trigger = $(controlId);
+    const picker = $(`${controlId}-picker`);
+    picker.onbeforetoggle = event => {
+      if (event.newState !== 'open') return;
+      const {left, top, bottom, width} = trigger.getBoundingClientRect();
+      const below = innerHeight - bottom - 12, above = top - 12;
+      const openAbove = below < 320 && above > below;
+      Object.assign(picker.style, {
+        left: `${left}px`,
+        width: `${width}px`,
+        top: openAbove ? 'auto' : `${bottom + 4}px`,
+        bottom: openAbove ? `${innerHeight - top + 4}px` : 'auto',
+        maxHeight: `${Math.min(320, openAbove ? above : below)}px`,
+      });
+    };
+    picker.onclick = event => {
+      const option = event.target.closest('[data-effect-value]');
+      if (!option) return;
+      const value = option.dataset.effectValue;
+      deckEdit[field] = value === '' ? null : Number(value);
+      const scrollTop = editor.scrollTop;
+      picker.hidePopover();
+      renderDeck();
+      document.querySelector('.deck-editor').scrollTop = scrollTop;
+      $(controlId).focus({preventScroll: true});
+    };
+  }
   $('deck-select-all').onclick=()=>{if(selectedDeck.size===34)selectedDeck.clear();else draft.deck.forEach(row=>selectedDeck.add(row.key));resetDeckEdit();renderDeck();};
   document.querySelectorAll('[data-deck-quick]').forEach(button=>{button.onclick=()=>{toggleDeckKeys(selectedDeck,quickGroups[button.dataset.deckQuick]);resetDeckEdit();renderDeck();};});
-  $('deck-score').oninput=event=>{deckEdit.score=event.target.value;};
-  $('deck-score-minus').onclick=()=>{deckEdit.score=String((Number(deckEdit.score)||0)-10);renderDeck();};
-  $('deck-score-plus').onclick=()=>{deckEdit.score=String((Number(deckEdit.score)||0)+10);renderDeck();};
+  const scoreInput = $('deck-score');
+  scoreInput.oninput = () => { deckEdit.score = scoreInput.value; };
+  $('deck-score-minus').onclick = () => { deckEdit.score = scoreInput.value = String((Number(scoreInput.value) || 0) - 10); };
+  $('deck-score-plus').onclick = () => { deckEdit.score = scoreInput.value = String((Number(scoreInput.value) || 0) + 10); };
   $('deck-restore').onclick=()=>{draft.deck=save.deck.map(row=>({...row}));selectedDeck.clear();deckEdit=null;render();};
   $('deck-apply').onclick=()=>{
     if(!selectedDeck.size)return;
-    if(deckEdit.scoreMode==='set'&&!/^[+-]?(?:\d+(?:\.\d*)?|\.\d+)(?:e[+-]?\d+)?$/i.test(deckEdit.score))return toast('请输入有效的牌面分');
-    if(deckEdit.lingMode==='set'&&!deckEdit.lingId)return toast('请选择牌灵');
-    if(deckEdit.baoMode==='set'&&!deckEdit.baoId)return toast('请选择宝牌');
-    for(const row of draft.deck){if(!selectedDeck.has(row.key))continue;if(deckEdit.scoreMode==='clear')row.score='0.0';if(deckEdit.scoreMode==='set')row.score=deckEdit.score;if(deckEdit.lingMode==='clear')row.lingId=0;if(deckEdit.lingMode==='set')row.lingId=deckEdit.lingId;if(deckEdit.baoMode==='clear')row.baoId=0;if(deckEdit.baoMode==='set')row.baoId=deckEdit.baoId;}
+    const score = deckEdit.score?.trim();
+    if (score && !/^[+-]?\d+(?:\.\d+)?(?:e[+-]?\d+)?$/i.test(score)) return toast('请输入有效的牌面分');
+    for (const row of selected) {
+      if (score !== undefined) row.score = score || '0.0';
+      if (deckEdit.lingId !== null) row.lingId = deckEdit.lingId;
+      if (deckEdit.baoId !== null) row.baoId = deckEdit.baoId;
+    }
     updateState();resetDeckEdit();renderDeck();
   };
   fixImages();
@@ -452,6 +502,7 @@ $('refresh-data').onclick = () => action(async () => {
   toast(`图鉴状态：${boot.source}。界面中的存档修改已保留。`,false);
 });
 window.addEventListener('beforeunload',event => { if (save && isDirty(save,draft)) { event.preventDefault(); event.returnValue = ''; } });
+window.addEventListener('resize', closeDeckEffectPicker);
 
 await action(async () => {
   if (!browserPreview) runtime = (await import('/wails/runtime.js')).Call;

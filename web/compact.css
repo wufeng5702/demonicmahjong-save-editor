@@ -124,16 +124,36 @@
 .editor-app .deck-selected-names { flex-shrink:0;padding:8px 10px;border-radius:8px;background:#f4f8f4;color:var(--jade);font-size:12px;line-height:1.5;max-height:58px;overflow:auto; }
 .editor-app .deck-editor-empty { display:grid;place-items:center;min-height:80px;color:var(--muted);background:#f8faf7;border-radius:8px; }
 .editor-app .deck-field { padding:10px;border:1px solid var(--border);border-radius:9px;background:#fcfdfb; }
-.editor-app .deck-field-title { display:flex;align-items:center;justify-content:space-between;gap:10px;margin-bottom:8px; }
-.editor-app .deck-field-title select { min-width:120px;padding:5px 8px; }
+.editor-app .deck-field-title { display:block;margin-bottom:8px; }
 .editor-app .deck-score-controls { display:grid;grid-template-columns:60px minmax(80px,1fr) 60px;gap:8px; }
 .editor-app .deck-score-controls input { min-width:0;text-align:center;font-size:17px;font-weight:600; }
-.editor-app .deck-field>select { width:100%;padding:6px 9px; }
+.editor-app .deck-effect-trigger { width:100%;display:flex;align-items:center;justify-content:space-between;gap:8px;text-align:left;font-weight:400;color:inherit;background:#fbfdf9; }
+.editor-app .deck-effect-picker {
+  position:fixed;
+  inset:auto;
+  margin:0;
+  padding:8px;
+  border:1px solid var(--border);
+  border-radius:9px;
+  background:#fff;
+  color:inherit;
+  box-shadow:0 6px 22px #172d2226;
+  overflow:hidden;
+}
+.editor-app .deck-effect-picker:popover-open { display:flex;flex-direction:column;gap:8px; }
+.editor-app .deck-effect-actions, .editor-app .deck-effect-choices { display:grid;gap:6px; }
+.editor-app .deck-effect-actions { grid-template-columns:repeat(2,minmax(0,1fr));flex-shrink:0; }
+.editor-app .deck-effect-choices { grid-template-columns:repeat(4,minmax(0,1fr));min-height:0;overflow-y:auto;overscroll-behavior:contain;padding:3px; }
+.editor-app .deck-effect-choices button { display:flex;flex-direction:column;align-items:center;justify-content:center;gap:4px;min-width:0;padding:6px 4px;color:inherit;font-size:12px;overflow-wrap:anywhere; }
+.editor-app .deck-effect-choices .portrait { width:44px;height:44px; }
+.editor-app .deck-effect-choices small { color:var(--muted);font-size:10px;font-weight:400; }
+.editor-app .deck-effect-picker button[aria-pressed="true"] { color:var(--jade);background:#e6f1e9;border-color:#83af99; }
 .editor-app .deck-effect-card { display:grid;grid-template-columns:46px minmax(0,1fr);gap:10px;align-items:center;margin-top:8px;padding:8px;border-radius:8px;background:#f5f8f5; }
 .editor-app .deck-effect-card .portrait { width:42px;height:42px; }
+.editor-app :is(.deck-effect-choices, .deck-effect-card) .portrait { background:#aeb5ae; }
+.editor-app :is(.deck-effect-choices, .deck-effect-card) .portrait .fallback { color:#e6f1e9; }
 .editor-app .deck-effect-card strong { display:block;font-size:12px; }
 .editor-app .deck-effect-card p { margin-top:4px;font-size:11px;line-height:1.45;color:var(--muted);white-space:pre-wrap; }
-.editor-app .deck-effect-empty { margin-top:8px;color:var(--muted);font-size:12px; }
 .editor-app .deck-actions { display:flex;gap:8px;margin-top:auto;padding-top:4px; }
 @media (max-width:1200px) {
   .editor-app .deck-workspace { grid-template-columns:minmax(590px,1.4fr) minmax(360px,1fr); }
