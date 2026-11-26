@@ -5,6 +5,7 @@ import (
 	"encoding/json/jsontext"
 	json "encoding/json/v2"
 	"fmt"
+	"maps"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -67,6 +68,9 @@ func decode[T any](raw jsontext.Value) (T, error) {
 
 func validate(d *document) error {
 	for _, field := range Fields {
+		if strings.HasPrefix(field.Key, currencyPrefix) {
+			continue // Currency fields are optional for older saves.
+		}
 		raw, exists := d.values[field.Key]
 		if !exists || len(raw) == 0 || raw[0] == '"' {
 			return fmt.Errorf("缺少有效数值字段 %s", field.Key)
@@ -156,10 +160,8 @@ func Load(path string) (*Snapshot, error) {
 		return nil, err
 	}
 	d, _ := parse(raw)
-	result := &Snapshot{Path: path, Hash: Hash(raw), Version: string(d.values["Version"]), Fields: map[string]string{}, Relics: []HeldRelic{}}
-	for _, field := range Fields {
-		result.Fields[field.Key] = string(d.values[field.Key])
-	}
+	_, currency := accountCurrency(d)
+	result := &Snapshot{Path: path, Hash: Hash(raw), Version: string(d.values["Version"]), Fields: numberValues(d, currency), Relics: []HeldRelic{}}
 	result.Equipped, _ = decode[[]int](d.values["AllXcp"])
 	result.Warehouse, _ = decode[[]int](d.values["AllXcpRepository"])
 	relics, _ := decode[[]jsontext.Value](d.values["RelicList"])
@@ -193,10 +195,15 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 		return nil, nil, err
 	}
 	deckBefore, _ := parseDeck(d.values[deckField])
-	numbers, labels := map[string]string{}, map[string]string{}
+	account, currency := accountCurrency(d)
+	originalNumbers := numberValues(d, currency)
+	numbers, labels := maps.Clone(originalNumbers), map[string]string{}
 	for _, field := range Fields {
-		numbers[field.Key], labels[field.Key] = string(d.values[field.Key]), field.Label
+		labels[field.Key] = field.Label
 		if input, exists := request.Fields[field.Key]; exists {
+			if _, available := originalNumbers[field.Key]; !available {
+				return nil, nil, fmt.Errorf("当前存档不支持修改%s", field.Label)
+			}
 			numbers[field.Key], err = number(input, field.Integer)
 			if err != nil {
 				return nil, nil, fmt.Errorf("%s：%w", field.Label, err)
@@ -204,7 +211,7 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 		}
 	}
 	for key := range request.Fields {
-		if _, exists := numbers[key]; !exists {
+		if _, exists := labels[key]; !exists {
 			return nil, nil, fmt.Errorf("禁止修改字段 %s", key)
 		}
 	}
@@ -293,11 +300,19 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 	if len(warehouse) > intValue("XiaoChouRepositorySlot") {
 		return nil, nil, fmt.Errorf("灵俑仓库超出容量，请先移出或移除")
 	}
-	changes := map[string]string{}
+	changes, currencyChanges := map[string]string{}, map[string]string{}
 	for key, value := range numbers {
-		if !equalNumber(value, string(d.values[key])) {
+		if equalNumber(value, originalNumbers[key]) {
+			continue
+		}
+		if name, isCurrency := strings.CutPrefix(key, currencyPrefix); isCurrency {
+			currencyChanges[name] = value
+		} else {
 			changes[key] = value
 		}
+	}
+	if len(currencyChanges) != 0 {
+		changes[accountDataKey] = string(account.replace(map[string]string{currencyKey: string(currency.replace(currencyChanges))}))
 	}
 	if !bytes.Equal([]byte(marshal(equipped)), []byte(marshal(oldEquipped))) {
 		changes["AllXcp"] = marshal(equipped)
@@ -367,6 +382,15 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 	preview := &Preview{Changes: []Change{}, Warnings: []string{}, SlotDelta: slotChange, Slots: slots, PreviewHash: Hash(updated)}
 	for _, key := range d.order {
 		if _, touched := changes[key]; !touched {
+			continue
+		}
+		if key == accountDataKey {
+			for _, name := range currency.order {
+				if value, changed := currencyChanges[name]; changed {
+					field := currencyPrefix + name
+					preview.Changes = append(preview.Changes, Change{field, labels[field], originalNumbers[field], value})
+				}
+			}
 			continue
 		}
 		before, value := string(d.values[key]), changes[key]

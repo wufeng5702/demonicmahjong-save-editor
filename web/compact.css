@@ -92,10 +92,9 @@
 .editor-app .detail .hint { margin-top: 5px; font-size: 11px; line-height: 1.4; }
 .editor-app .detail-actions { margin-top: 8px; gap: 8px; }
 .editor-app .number-panel { margin-bottom: 10px; padding: 14px; overflow: auto; }
-.editor-app .number-sections { display: grid; grid-template-columns: 1.2fr 1fr 1fr; gap: 12px; min-height: 0; margin-bottom: 10px; }
+.editor-app .number-sections { display: grid; grid-template-columns: repeat(4,minmax(0,1fr)); gap: 12px; min-height: 0; margin-bottom: 10px; }
 .editor-app .number-sections .number-panel { margin-bottom: 0; }
 .editor-app .number-sections .number-grid { grid-template-columns: minmax(0,1fr); }
-.editor-app .number-sections .number-group-0 .number-grid { grid-template-columns: repeat(2,minmax(0,1fr)); }
 .editor-app .number-grid { grid-template-columns: repeat(3,minmax(0,1fr)); gap: 12px 18px; }
 .editor-app .number-field { gap: 5px; }
 .editor-app .number-field strong { font-size: 13px; }

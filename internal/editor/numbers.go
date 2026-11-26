@@ -15,11 +15,45 @@ type Field struct {
 	Integer bool   `json:"integer"`
 }
 
+const (
+	accountDataKey = "AccountGameData"
+	currencyKey    = "currency"
+	currencyPrefix = accountDataKey + "." + currencyKey + "."
+)
+
 var Fields = []Field{
 	{"Coin", "金币", false}, {"Hp", "血量", true}, {"HpMax", "最大血量", true},
 	{"AccHpLost", "累计已损失血量", true}, {"InitSwapPaiTotal", "开局调换牌数", true},
 	{"SwapPaiTurnTotal", "每回合摸牌数", true}, {"HuPaiSlotsCount", "和牌槽数量", true},
 	{"LingYongSlotNum", "灵俑累计槽位", true}, {"XiaoChouRepositorySlot", "灵俑仓库容量", true},
+	{currencyPrefix + "lowTokenCount", "修为", true}, {currencyPrefix + "premiumTokenCount", "精魄", true},
+}
+
+func accountCurrency(save *document) (account, currency *document) {
+	account, err := parse(save.values[accountDataKey])
+	if err != nil {
+		return nil, nil // Older saves may not contain account data.
+	}
+	currency, _ = parse(account.values[currencyKey])
+	return account, currency
+}
+
+func numberValues(save, currency *document) map[string]string {
+	values := make(map[string]string, len(Fields))
+	for _, field := range Fields {
+		name, isCurrency := strings.CutPrefix(field.Key, currencyPrefix)
+		if !isCurrency {
+			values[field.Key] = string(save.values[field.Key])
+			continue
+		}
+		if currency != nil {
+			raw := string(currency.values[name])
+			if _, err := strconv.ParseInt(raw, 10, 32); err == nil {
+				values[field.Key] = raw
+			}
+		}
+	}
+	return values
 }
 
 var numberPattern = regexp.MustCompile(`^\+?(\d+)(?:\.(\d+))?(?:[eE]([+-]?\d+))?$`)

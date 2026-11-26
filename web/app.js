@@ -426,11 +426,19 @@ function renderDeck() {
 }
 
 function renderNumbers() {
-  const groups = [['金币与血量',['Coin','Hp','HpMax','AccHpLost']],['麻将对局',['InitSwapPaiTotal','SwapPaiTurnTotal','HuPaiSlotsCount']],['灵俑容量',['LingYongSlotNum','XiaoChouRepositorySlot']]];
+  const groups = [
+    ['金币与血量', ['Coin','Hp','HpMax','AccHpLost']],
+    ['麻将对局', ['InitSwapPaiTotal','SwapPaiTurnTotal','HuPaiSlotsCount']],
+    ['灵俑容量', ['LingYongSlotNum','XiaoChouRepositorySlot']],
+    ['局外资源', ['AccountGameData.currency.lowTokenCount','AccountGameData.currency.premiumTokenCount']],
+  ];
   $('content').innerHTML = `<div class="page-title"><div class="title-line"><h2>数值编辑</h2><span class="page-inline-tip">显示的是存档原始值。游戏可能因技能、遗物或 GameConfig 在运行时另行计算最终数值。</span></div></div>
-    <div class="number-sections">${groups.map(([title,keys],index) => `<section class="panel number-panel number-group-${index}"><div class="panel-heading"><h3>${title}</h3></div><div class="number-grid">${keys.map(key => {
+    <div class="number-sections">${groups.map(([title,keys]) => `<section class="panel number-panel"><div class="panel-heading"><h3>${title}</h3></div><div class="number-grid">${keys.map(key => {
       const field = boot.fields.find(f => f.key === key);
-      return `<label class="number-field" title="${esc(key)}；读取值 ${esc(save.fields[key])}"><strong>${esc(field.label)}</strong><input data-field="${key}" aria-label="${esc(field.label)}" type="text" inputmode="${field.integer ? 'numeric' : 'decimal'}" value="${esc(draft.fields[key])}"><small>读取值 ${esc(save.fields[key])}</small></label>`;
+      const current = save.fields[key];
+      const available = current !== undefined;
+      const caption = available ? `读取值 ${current}` : '存档中无有效字段';
+      return `<label class="number-field" title="${esc(key)}；${esc(caption)}"><strong>${esc(field.label)}</strong><input data-field="${key}" aria-label="${esc(field.label)}" type="text" inputmode="${field.integer ? 'numeric' : 'decimal'}" value="${esc(draft.fields[key])}" ${available ? '' : 'disabled'}><small>${esc(caption)}</small></label>`;
     }).join('')}</div></section>`).join('')}</div>
     <button id="reset-numbers">撤销数值页修改</button>`;
   for (const input of document.querySelectorAll('[data-field]')) input.oninput = () => { draft.fields[input.dataset.field] = input.value; updateState(); };

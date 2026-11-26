@@ -5,6 +5,7 @@ import (
 	"encoding/json/jsontext"
 	"os"
 	"path/filepath"
+	"slices"
 	"strconv"
 	"strings"
 	"testing"
@@ -60,6 +61,92 @@ func TestNumericsPreserveHugeDecimalsAndAllOtherBytes(t *testing.T) {
 	expected = bytes.Replace(expected, []byte(`"Hp":3`), []byte(`"Hp":2`), 1)
 	if !bytes.Equal(updated, expected) || len(preview.Changes) != 2 {
 		t.Fatal("unrelated bytes or decimal literals changed")
+	}
+}
+
+func TestAccountCurrencyReadsAndReplacesOnlyEditedBalances(t *testing.T) {
+	raw := bytes.Replace(fixture(), []byte(`"AccountGameData":{"achievements":`), []byte(`"AccountGameData":{
+    "currency" : {"cashTokenCount":7, "lowTokenCount" : 12, "premiumTokenCount":34, "future":79228162514264337593543950335.0},
+    "achievements":`), 1)
+	path := filepath.Join(t.TempDir(), "Slot0.json")
+	if err := os.WriteFile(path, raw, 0600); err != nil {
+		t.Fatal(err)
+	}
+	save, err := Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	const low = "AccountGameData.currency.lowTokenCount"
+	const premium = "AccountGameData.currency.premiumTokenCount"
+	if save.Fields[low] != "12" || save.Fields[premium] != "34" {
+		t.Fatalf("unexpected balances: %q / %q", save.Fields[low], save.Fields[premium])
+	}
+	request := req(raw)
+	request.Fields = map[string]string{premium: "0"}
+	updated, preview, err := Build(raw, request, catalogFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected := bytes.Replace(raw, []byte(`"premiumTokenCount":34`), []byte(`"premiumTokenCount":0`), 1)
+	if !bytes.Equal(updated, expected) || !slices.Equal(preview.Changes, []Change{{premium, "精魄", "34", "0"}}) {
+		t.Fatalf("single balance edit changed unexpected content or preview: %+v", preview.Changes)
+	}
+	request.Fields[low] = "2147483647"
+	updated, preview, err = Build(raw, request, catalogFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	expected = bytes.Replace(expected, []byte(`"lowTokenCount" : 12`), []byte(`"lowTokenCount" : 2147483647`), 1)
+	wantChanges := []Change{{low, "修为", "12", "2147483647"}, {premium, "精魄", "34", "0"}}
+	if !bytes.Equal(updated, expected) || !slices.Equal(preview.Changes, wantChanges) {
+		t.Fatalf("two balance edits changed unexpected content or preview: %+v", preview.Changes)
+	}
+	backup, err := AtomicSave(path, save.Hash, updated, func() (bool, error) { return false, nil })
+	if err != nil {
+		t.Fatal(err)
+	}
+	backedUp, err := os.ReadFile(backup)
+	if err != nil || !bytes.Equal(backedUp, raw) {
+		t.Fatalf("backup did not preserve the original bytes: %v", err)
+	}
+	save, err = Load(path)
+	if err != nil {
+		t.Fatal(err)
+	}
+	if save.Fields[low] != "2147483647" || save.Fields[premium] != "0" {
+		t.Fatalf("unexpected balances after saving: %q / %q", save.Fields[low], save.Fields[premium])
+	}
+}
+
+func TestAccountCurrencyUnavailableAndInvalidEdits(t *testing.T) {
+	const low = "AccountGameData.currency.lowTokenCount"
+	const premium = "AccountGameData.currency.premiumTokenCount"
+	old := fixture()
+	request := req(old)
+	request.Fields = map[string]string{low: "1"}
+	if _, _, err := Build(old, request, catalogFixture()); err == nil {
+		t.Fatal("accepted editing a balance missing from an older save")
+	}
+	raw := bytes.Replace(old, []byte(`"AccountGameData":{"achievements":`), []byte(`"AccountGameData":{"currency":{"lowTokenCount":0,"premiumTokenCount":null},"achievements":`), 1)
+	for key, inputs := range map[string][]string{
+		low: {"-1", "12.5", "2147483648"}, premium: {"10"}, "AccountGameData.currency.cashTokenCount": {"10"},
+	} {
+		for _, input := range inputs {
+			request := req(raw)
+			request.Fields = map[string]string{key: input}
+			if _, _, err := Build(raw, request, catalogFixture()); err == nil {
+				t.Errorf("accepted %s = %q", key, input)
+			}
+		}
+	}
+	request = req(raw)
+	request.Fields = map[string]string{low: "17"}
+	updated, _, err := Build(raw, request, catalogFixture())
+	if err != nil {
+		t.Fatal(err)
+	}
+	if !bytes.Equal(updated, bytes.Replace(raw, []byte(`"lowTokenCount":0`), []byte(`"lowTokenCount":17`), 1)) {
+		t.Fatal("editing the available balance changed other content")
 	}
 }
 
