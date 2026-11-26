@@ -4,7 +4,8 @@ import (
 	"crypto/rand"
 	"embed"
 	"encoding/hex"
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"flag"
 	"fmt"
 	"io/fs"
@@ -111,18 +112,18 @@ func main() {
 			if r.URL.Path == "/api/Bootstrap" {
 				boot, err := s.Bootstrap()
 				if err != nil {
-					json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+					_ = json.MarshalWrite(w, map[string]string{"error": err.Error()})
 					return
 				}
-				json.NewEncoder(w).Encode(map[string]any{"token": token, "boot": boot})
+				_ = json.MarshalWrite(w, map[string]any{"token": token, "boot": boot})
 				return
 			}
 			if r.Method != "POST" || r.Header.Get("X-Editor-Token") != token {
 				http.Error(w, "read-only preview", 403)
 				return
 			}
-			var args []json.RawMessage
-			err := json.NewDecoder(http.MaxBytesReader(w, r.Body, 2<<20)).Decode(&args)
+			var args []jsontext.Value
+			err := json.UnmarshalRead(http.MaxBytesReader(w, r.Body, 2<<20), &args)
 			var result any
 			if err == nil {
 				switch r.URL.Path {
@@ -156,10 +157,10 @@ func main() {
 			}
 			if err != nil {
 				w.WriteHeader(400)
-				json.NewEncoder(w).Encode(map[string]string{"error": err.Error()})
+				_ = json.MarshalWrite(w, map[string]string{"error": err.Error()})
 				return
 			}
-			json.NewEncoder(w).Encode(result)
+			_ = json.MarshalWrite(w, result)
 		})
 		mux.Handle("/", handler)
 		fmt.Println("Read-only UI preview: http://" + *preview)

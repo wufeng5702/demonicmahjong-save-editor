@@ -62,7 +62,7 @@
 
 ## 构建与测试
 
-开发需要 Windows、Go 1.26+ 和 Node.js 24+。Wails v3.1.0 通过 Go 模块下载，无需额外安装 Wails CLI。前端无框架和 npm 依赖。运行构建后的 EXE 不需要 Go 或 Node，只需要 WebView2。
+开发需要 Windows、Go 1.27+ 和 Node.js 24+。项目使用 `encoding/json/v2` 和 `encoding/json/jsontext` 处理 JSON。Wails v3.1.0 通过 Go 模块下载，无需额外安装 Wails CLI。前端无框架和 npm 依赖。运行构建后的 EXE 不需要 Go 或 Node，只需要 WebView2。
 
 ```powershell
 git clone https://github.com/wufeng5702/demonicmahjong-save-editor.git

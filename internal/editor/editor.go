@@ -2,7 +2,8 @@ package editor
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
+	json "encoding/json/v2"
 	"fmt"
 	"os"
 	"path/filepath"
@@ -55,7 +56,7 @@ type Preview struct {
 	PreviewHash string   `json:"previewHash"`
 }
 
-func decode[T any](raw json.RawMessage) (T, error) {
+func decode[T any](raw jsontext.Value) (T, error) {
 	var value T
 	err := json.Unmarshal(raw, &value)
 	return value, err
@@ -71,10 +72,8 @@ func validate(d *document) error {
 			if _, err := decode[int](raw); err != nil {
 				return fmt.Errorf("%s 不是整数", field.Key)
 			}
-		} else {
-			if _, err := decode[json.Number](raw); err != nil {
-				return fmt.Errorf("%s 不是数值", field.Key)
-			}
+		} else if raw.Kind() != jsontext.KindNumber {
+			return fmt.Errorf("%s 不是数值", field.Key)
 		}
 	}
 	for _, key := range []string{"AllXcp", "AllXcpRepository"} {
@@ -91,7 +90,7 @@ func validate(d *document) error {
 	if !bytes.HasPrefix(d.values["RelicList"], []byte("[")) {
 		return fmt.Errorf("缺少遗物列表 RelicList")
 	}
-	relics, err := decode[[]json.RawMessage](d.values["RelicList"])
+	relics, err := decode[[]jsontext.Value](d.values["RelicList"])
 	if err != nil {
 		return err
 	}
@@ -103,7 +102,7 @@ func validate(d *document) error {
 	return nil
 }
 
-func relicID(raw json.RawMessage) (int, error) {
+func relicID(raw jsontext.Value) (int, error) {
 	d, err := parse(raw)
 	if err != nil {
 		return 0, err
@@ -153,7 +152,7 @@ func Load(path string) (*Snapshot, error) {
 	}
 	result.Equipped, _ = decode[[]int](d.values["AllXcp"])
 	result.Warehouse, _ = decode[[]int](d.values["AllXcpRepository"])
-	relics, _ := decode[[]json.RawMessage](d.values["RelicList"])
+	relics, _ := decode[[]jsontext.Value](d.values["RelicList"])
 	for i, raw := range relics {
 		id, _ := relicID(raw)
 		result.Relics = append(result.Relics, HeldRelic{i, id})
@@ -226,7 +225,7 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 			return nil, nil, fmt.Errorf("已持有灵俑 ID %d，不支持新增同 ID 副本", id)
 		}
 	}
-	oldRelics, _ := decode[[]json.RawMessage](d.values["RelicList"])
+	oldRelics, _ := decode[[]jsontext.Value](d.values["RelicList"])
 	oldIDs, newIDs := []int{}, []int{}
 	for _, item := range oldRelics {
 		id, _ := relicID(item)
@@ -314,13 +313,13 @@ func Build(raw []byte, request Request, catalog *Catalog) ([]byte, *Preview, err
 	}
 	newGrowth := "{" + strings.Join(growthTokens, ",") + "}"
 	// Compare serialized raw records, not float64 values.
-	beforeGrowth, _ := decode[map[string]json.RawMessage](d.values["Xcp"])
-	afterGrowth, _ := decode[map[string]json.RawMessage]([]byte(newGrowth))
+	beforeGrowth, _ := decode[map[string]jsontext.Value](d.values["Xcp"])
+	afterGrowth, _ := decode[map[string]jsontext.Value]([]byte(newGrowth))
 	if marshal(beforeGrowth) != marshal(afterGrowth) {
 		changes["Xcp"] = newGrowth
 	}
 	newRelicText := "[" + strings.Join(relicTokens, ",") + "]"
-	if marshal(oldRelics) != marshal(json.RawMessage(newRelicText)) {
+	if marshal(oldRelics) != marshal(jsontext.Value(newRelicText)) {
 		changes["RelicList"] = newRelicText
 	}
 	updated := d.replace(changes)

@@ -2,7 +2,7 @@ package editor
 
 import (
 	"bytes"
-	"encoding/json"
+	"encoding/json/jsontext"
 	"os"
 	"path/filepath"
 	"strconv"
@@ -169,8 +169,8 @@ func TestRelicSlotDeltaAndCounterPreservation(t *testing.T) {
 	}
 	before, _ := parse(raw)
 	after, _ := parse(updated)
-	old, _ := decode[[]json.RawMessage](before.values["RelicList"])
-	next, _ := decode[[]json.RawMessage](after.values["RelicList"])
+	old, _ := decode[[]jsontext.Value](before.values["RelicList"])
+	next, _ := decode[[]jsontext.Value](after.values["RelicList"])
 	if !bytes.Equal(old[0], next[0]) {
 		t.Fatal("existing relic counters changed")
 	}
@@ -189,7 +189,7 @@ func TestRelicBatchAddAllowsDuplicateItems(t *testing.T) {
 		t.Fatal(err)
 	}
 	after, _ := parse(updated)
-	rows, _ := decode[[]json.RawMessage](after.values["RelicList"])
+	rows, _ := decode[[]jsontext.Value](after.values["RelicList"])
 	if len(rows) != 3 || preview.SlotDelta != 1 {
 		t.Fatal("batch add or altar delta incorrect")
 	}
@@ -202,7 +202,7 @@ func TestRelicBatchAddAllowsDuplicateItems(t *testing.T) {
 		t.Fatal("duplicate relic rejected:", err)
 	}
 	after, _ = parse(updated)
-	rows, _ = decode[[]json.RawMessage](after.values["RelicList"])
+	rows, _ = decode[[]jsontext.Value](after.values["RelicList"])
 	if len(rows) != 4 || preview.SlotDelta != 2 {
 		t.Fatal("duplicate altar did not add its own slot")
 	}
@@ -225,7 +225,7 @@ func TestManyDuplicateRelicsHaveNoGameQuantityCap(t *testing.T) {
 		t.Fatal(err)
 	}
 	doc, _ := parse(updated)
-	rows, _ := decode[[]json.RawMessage](doc.values["RelicList"])
+	rows, _ := decode[[]jsontext.Value](doc.values["RelicList"])
 	if len(rows) != 4200 {
 		t.Fatal("relic quantity was capped")
 	}
@@ -308,8 +308,17 @@ func TestDuplicateJSONKeysRejected(t *testing.T) {
 	if _, err := parse([]byte(`{"Coin":1,"Coin":2}`)); err == nil {
 		t.Fatal("accepted duplicate keys")
 	}
+	if _, err := parse([]byte(`{"nested":{"key":1,"key":2}}`)); err == nil {
+		t.Fatal("accepted nested duplicate keys")
+	}
+	if _, err := decode[Request](jsontext.Value(`{"path":"first","path":"second"}`)); err == nil {
+		t.Fatal("encoding/json/v2 accepted duplicate request fields")
+	}
 	if _, err := parse([]byte(`{"a":1} garbage`)); err == nil {
 		t.Fatal("accepted trailing garbage")
+	}
+	if _, err := parse([]byte{'{', '"', 'a', '"', ':', '"', 0xff, '"', '}'}); err == nil {
+		t.Fatal("accepted invalid UTF-8")
 	}
 }
 
