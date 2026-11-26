@@ -20,8 +20,15 @@ if ($LASTEXITCODE -ne 0) { throw 'Go vet failed.' }
 
 New-Item -ItemType Directory -Path $OutputDir -Force | Out-Null
 $output = Join-Path $OutputDir 'DemonicMahjongSaveEditor.exe'
-go build -trimpath -tags production -ldflags "-s -w -H windowsgui -X main.version=$Version" -o $output .
-if ($LASTEXITCODE -ne 0) { throw 'EXE build failed.' }
+$resource = Join-Path $PSScriptRoot 'wails_windows_amd64.syso'
+try {
+    go run github.com/wailsapp/wails/v3/cmd/wails3@v3.1.0 generate syso -arch amd64 -icon assets/app-icon.ico -manifest assets/app.manifest -out $resource
+    if ($LASTEXITCODE -ne 0) { throw 'Windows icon resource generation failed.' }
+    go build -trimpath -tags production -ldflags "-s -w -H windowsgui -X main.version=$Version" -o $output .
+    if ($LASTEXITCODE -ne 0) { throw 'EXE build failed.' }
+} finally {
+    Remove-Item -LiteralPath $resource -Force -ErrorAction SilentlyContinue
+}
 
 # Include the licenses of modules actually linked into the executable, not SDK tooling.
 $modules = go list -deps -tags production -f '{{if .Module}}{{.Module.Path}}|{{.Module.Version}}|{{.Module.Dir}}{{end}}' .

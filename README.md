@@ -110,7 +110,7 @@ CI 仅有仓库读取权限，第三方 Actions 固定完整 commit SHA，不创
 
 ## 许可
 
-修改器源码采用 MIT 许可，见 [LICENSE](LICENSE)。游戏资料、图标及第三方组件的权利说明见 [NOTICE.md](NOTICE.md)。仓库与构建产物不包含真实存档、下载缓存或游戏资源。
+修改器源码采用 MIT 许可，见 [LICENSE](LICENSE)。应用图标、游戏资料及第三方组件的权利说明见 [NOTICE.md](NOTICE.md)。仓库与构建产物不包含真实存档、下载缓存或图鉴资源。
 
 ## 结构
 

@@ -18,7 +18,7 @@ import (
 	"github.com/wufeng5702/demonicmahjong-save-editor/internal/editor"
 )
 
-//go:embed all:web
+//go:embed all:web assets/app-icon.png
 var assets embed.FS
 
 var version = "dev"
@@ -66,6 +66,17 @@ func main() {
 	static := http.FileServer(http.FS(web))
 	iconPattern := regexp.MustCompile(`^/icons/(lingyong|relics)/\d+\.png$`)
 	handler := http.HandlerFunc(func(w http.ResponseWriter, r *http.Request) {
+		if r.URL.Path == "/app-icon.png" {
+			raw, err := assets.ReadFile("assets/app-icon.png")
+			if err != nil {
+				http.NotFound(w, r)
+				return
+			}
+			w.Header().Set("Content-Type", "image/png")
+			w.Header().Set("Cache-Control", "public, max-age=31536000, immutable")
+			w.Write(raw)
+			return
+		}
 		if iconPattern.MatchString(r.URL.Path) {
 			parts := strings.Split(strings.TrimPrefix(r.URL.Path, "/icons/"), "/")
 			raw, mime, err := s.icon(parts[0], strings.TrimSuffix(parts[1], ".png"))

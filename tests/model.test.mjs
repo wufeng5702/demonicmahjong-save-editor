@@ -55,6 +55,12 @@ test('save selector is not an editable path input',() => {
   assert.doesNotMatch(html,/<input id="path"/);
   assert.equal(html.includes('save-paths'),false);
 });
+test('application icon is used in the page header and favicon',() => {
+  const html=readFileSync(new URL('../web/index.html',import.meta.url),'utf8');
+  assert.match(html,/<link rel="icon"[^>]+href="\/app-icon\.png"/);
+  assert.match(html,/<img class="logo" src="\/app-icon\.png"/);
+  assert.equal(html.includes('<span class="logo">俑</span>'),false);
+});
 test('slot labels include account, slot number and complete path',() => {
   const a='E:/Steam/userdata/111/3444020/remote/Slot0.json';
   const b='E:/Steam/userdata/222/3444020/remote/Slot0.json';
